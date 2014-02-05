@@ -56,6 +56,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private final int FAILED=-1;
     private final int SAMEUSER=0;
     private final int RECONNECT=-2;
+    protected transient EC2Cloud parent;
     
     protected String buildUpCommand(EC2Computer computer, String command) {
     	if (!computer.getRemoteAdmin().equals("root")) {
@@ -206,7 +207,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
-        final long timeout = computer.getNode().getLaunchTimeoutInMillis();
+    	long tm = Integer.MAX_VALUE;
+    	if(computer.getNode().getCloud().getGlobalTimeoutAMIsMillis() != Integer.MAX_VALUE * 1000L)
+    		tm = computer.getNode().getCloud().getGlobalTimeoutAMIsMillis();
+    	if(computer.getNode().getLaunchTimeoutInMillis() != Integer.MAX_VALUE * 1000L){
+    		tm = computer.getNode().getLaunchTimeoutInMillis();
+    	}
+        final long timeout = tm;
         final long startTime = System.currentTimeMillis();
         while(true) {
             try {

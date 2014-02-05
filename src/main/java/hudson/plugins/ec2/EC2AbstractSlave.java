@@ -71,6 +71,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
+    public final boolean terminateIfTimeout;
     public final boolean usePrivateDnsName;
     public List<EC2Tag> tags;
     public final String cloudName;
@@ -99,7 +100,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, boolean terminateIfTimeout) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -111,6 +112,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.sshPort = sshPort;
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
+        this.terminateIfTimeout = terminateIfTimeout;
         this.tags = tags;
         this.usePrivateDnsName = usePrivateDnsName;
         this.cloudName = cloudName;
@@ -279,6 +281,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public boolean getStopOnTerminate() {
         return stopOnTerminate;
+    }
+    public boolean getTerminateIfTimeout(){
+    	return terminateIfTimeout;
     }
 
 	/**
