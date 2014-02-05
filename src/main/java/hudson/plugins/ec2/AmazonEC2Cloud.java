@@ -67,8 +67,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     
     
     @DataBoundConstructor
-    public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(CLOUD_ID_PREFIX + region, accessId, secretKey, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String globalTimeoutAMIs, boolean terminateAllSlavesOnTimeout, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+        super(CLOUD_ID_PREFIX + region, accessId, secretKey, privateKey, globalTimeoutAMIs, terminateAllSlavesOnTimeout, instanceCapStr, templates);
         this.region = region;
     }
 

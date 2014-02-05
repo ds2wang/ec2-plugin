@@ -53,6 +53,7 @@ import java.util.logging.Logger;
 import javax.servlet.ServletException;
 
 import jenkins.slaves.iterators.api.NodeIterator;
+
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -64,6 +65,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -88,6 +90,8 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String accessId;
     private final Secret secretKey;
+    private final String globalTimeoutAMIs;
+    private final boolean terminateAllSlavesOnTimeout;
     protected final EC2PrivateKey privateKey;
 
     /**
@@ -106,11 +110,13 @@ public abstract class EC2Cloud extends Cloud {
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String globalTimeoutAMIs, boolean terminateAllSlavesOnTimeout,  String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
+        this.globalTimeoutAMIs = globalTimeoutAMIs.trim();
+        this.terminateAllSlavesOnTimeout = terminateAllSlavesOnTimeout;
 
         if(templates==null) {
             this.templates=Collections.emptyList();
@@ -135,7 +141,25 @@ public abstract class EC2Cloud extends Cloud {
             t.parent = this;
         return this;
     }
-
+    
+    public String getGlobalTimeoutAMIs(){
+    	return globalTimeoutAMIs;
+    }
+    
+    public boolean getTerminateAllSlavesOnTimeout(){
+    	return terminateAllSlavesOnTimeout;
+    }
+    
+    public long getGlobalTimeoutAMIsMillis(){
+    	long timeout;
+        try {
+            timeout = Integer.parseInt(globalTimeoutAMIs)*1000L;
+        } catch (NumberFormatException nfe ) {
+        	timeout = Integer.MAX_VALUE*1000L;
+        }
+    	return timeout;
+    }
+    
     public String getAccessId() {
         return accessId;
     }
@@ -210,6 +234,28 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
+    /**
+     * Counts the number of instances in EC2 currently running that are using the specifed image.
+     *
+     * @param ami If AMI is left null, then all instances are counted.
+     * <p>
+     * This includes those instances that may be started outside Hudson.
+     */
+    public int countCurrentEC2SlavesByLabel(String label) throws AmazonClientException {
+        int n=0;
+        for (Reservation r : connect().describeInstances().getReservations()) {
+            for (Instance i : r.getInstances()) {
+            	i.getState();
+                if (label == null || label.equals(i.getImageId())) {
+                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
+                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
+                        n++;
+                }
+            }
+        }
+        return n;
+    }
+    
     /**
      * Debug command to attach to a running instance.
      */

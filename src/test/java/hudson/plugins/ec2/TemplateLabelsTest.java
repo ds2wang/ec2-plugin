@@ -50,11 +50,11 @@ public class TemplateLabelsTest extends HudsonTestCase{
       tags.add( tag1 );
       tags.add( tag2 );
 
-      SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, Node.Mode.NORMAL,"foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null);
+      SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, Node.Mode.NORMAL,"foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, null, false);
       List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
       templates.add(template);
 
-      ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);
+      ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", false, "3", templates);
 	}
 	
 	public void testLabelAtom(){
@@ -79,11 +79,11 @@ public class TemplateLabelsTest extends HudsonTestCase{
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate temp = new SlaveTemplate("ami", "foo", null, "default", "zone", "22", InstanceType.M1Large, "", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null);
+        SlaveTemplate temp = new SlaveTemplate("ami", "foo", null, "default", "zone", "22", InstanceType.M1Large, "", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, null, false);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(temp);
 
-        ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);
+        ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", false, "3", templates);
 
         assertEquals(true, ac.canProvision(null));
     }
