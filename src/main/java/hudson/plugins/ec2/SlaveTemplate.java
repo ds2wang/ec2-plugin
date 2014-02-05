@@ -136,9 +136,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         readResolve(); // initialize
     }
 
-    public String getAMI(){
-    	return ami;
-    }
     
     public EC2Cloud getParent() {
         return parent;

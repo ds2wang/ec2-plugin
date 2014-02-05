@@ -233,28 +233,6 @@ public abstract class EC2Cloud extends Cloud {
         }
         return n;
     }
-
-    /**
-     * Counts the number of instances in EC2 currently running that are using the specifed image.
-     *
-     * @param ami If AMI is left null, then all instances are counted.
-     * <p>
-     * This includes those instances that may be started outside Hudson.
-     */
-    public int countCurrentEC2SlavesByLabel(String label) throws AmazonClientException {
-        int n=0;
-        for (Reservation r : connect().describeInstances().getReservations()) {
-            for (Instance i : r.getInstances()) {
-            	i.getState();
-                if (label == null || label.equals(i.getImageId())) {
-                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
-                        n++;
-                }
-            }
-        }
-        return n;
-    }
     
     /**
      * Debug command to attach to a running instance.
