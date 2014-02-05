@@ -49,7 +49,6 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     public void launch(SlaveComputer _computer, TaskListener listener) {
     	EC2Computer computer = (EC2Computer)_computer;
         try {
-            computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
 
             OUTER:

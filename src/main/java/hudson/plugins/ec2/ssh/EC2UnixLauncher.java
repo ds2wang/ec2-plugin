@@ -56,7 +56,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private final int FAILED=-1;
     private final int SAMEUSER=0;
     private final int RECONNECT=-2;
-    protected transient EC2Cloud parent;
     
     protected String buildUpCommand(EC2Computer computer, String command) {
     	if (!computer.getRemoteAdmin().equals("root")) {
