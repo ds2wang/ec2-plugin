@@ -59,7 +59,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "");
+	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, "", "0", null, false);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -74,7 +74,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
     public void testConfigRoundtripWithPrivateDns() throws Exception {
         String ami = "ami1";
-	String description = "foo ami";
+        String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag( "name1", "value1" );
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
@@ -82,7 +82,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "", "0", null, false);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -112,7 +112,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.toString());
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "","0", null, false);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
@@ -139,7 +139,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, "", "0", null, false);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -151,25 +151,74 @@ public class SlaveTemplateTest extends HudsonTestCase {
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamInstanceProfile");
     }
-
-
+    
+    public void testInPIWindow(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertTrue(EC2Cloud.isInPIWindow(st,8, 56, 1));
+    }
+    
+    public void testNotInPIWindow(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,9, 56, 1));
+    }
+    
+    
+    public void testPIWindowInDays(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",false, true, false, false, false, false, false);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertTrue(EC2Cloud.isInPIWindow(st,8, 56, 1));
+    }
+    
+    public void testPIWindowNotInDays(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",false, true, false, false, false, false, false);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,8, 56, 2));
+    }
+    public void testPIWindowInvalidFormats(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("0:00", "023:59",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,8, 56, 2));
+        List<EC2PIWindow> piWindowList2= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow2=new EC2PIWindow("0:00", "2345", true ,true ,true, true, true, true, true);
+    	piWindowList2.add(piWindow2);
+        SlaveTemplate st2 = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList2, false);
+        assertFalse(EC2Cloud.isInPIWindow(st2, 8, 56, 2));
+        List<EC2PIWindow> piWindowList3= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow3=new EC2PIWindow("0:00", "asdf", true ,true ,true, true, true, true, true);
+    	piWindowList3.add(piWindow3);
+        SlaveTemplate st3 = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList2, false);
+        assertFalse(EC2Cloud.isInPIWindow(st3, 8, 56, 2));
+    }
+    
     public void testNullTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", null, false);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void test0TimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "0", "0", null, false);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNegativeTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "-1", "0", null, false);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNonNumericTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber", "0", null, false);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 

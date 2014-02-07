@@ -24,12 +24,33 @@
 package hudson.plugins.ec2;
 
 import hudson.model.Descriptor;
+import hudson.model.Descriptor.FormException;
+import hudson.model.Executor;
+import hudson.model.Hudson;
+import hudson.model.Label;
 import hudson.slaves.RetentionStrategy;
+import hudson.util.StreamTaskListener;
 import hudson.util.TimeUnit2;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletException;
+
+import jenkins.slaves.iterators.api.NodeIterator;
+
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import antlr.ANTLRException;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 
 /**
  * {@link RetentionStrategy} for EC2.
@@ -44,7 +65,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
-        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim().equals("")) {
             this.idleTerminationMinutes = 0;
         } else {
             int value = 30;
@@ -59,20 +80,20 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     @Override
-	public synchronized long check(EC2Computer c) {
-
-        /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0) {
-        	return 1;
-        }
-
-        if (c.isIdle() && c.isOnline() && !disabled) {
-            if (idleTerminationMinutes > 0) {
+    public synchronized long check(EC2Computer c) {
+		/* If we've been told never to terminate, then we're done. */
+    	if  (idleTerminationMinutes == 0)
+			return 1;
+		String labelstr = c.getNode().getLabelString();
+		int numIdleSlaves = EC2Cloud.countIdleSlaves(labelstr) ;
+		LOGGER.severe("Idle slaves: " + numIdleSlaves);
+		if (c.isIdle() && c.isOnline() && !disabled) {
+			
+			if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here
                 final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
                 if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                    LOGGER.info("Idle timeout: "+c.getName());
-                    c.getNode().idleTimeout();
+                	checkIdleTimeout(idleTerminationMinutes, c);
                 }
             } else {
                 final long uptime;
@@ -84,14 +105,37 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
                 // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
                 if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
-                    LOGGER.info("Idle timeout: "+c.getName());
-                    c.getNode().idleTimeout();
+                	checkIdleTimeout(idleTerminationMinutes, c);
                 }
             }
-        }
-        return 1;
+		    // TODO: really think about the right strategy here
+		}
+		return 1;
     }
-
+    public void checkIdleTimeout(long idleMilliseconds, EC2Computer c ){
+		String labelstr = c.getNode().getLabelString();
+		int numIdleSlaves = EC2Cloud.countIdleSlaves(labelstr) ;
+        SlaveTemplate t = null;
+        
+        for (SlaveTemplate temp:c.getCloud().getTemplates()){
+        	if (temp.getLabelString().equals(labelstr)){
+        		t=temp;
+        	}
+        }
+        int numPrimedInstances = 0; 
+        if(t != null)
+        	numPrimedInstances = t.getNumPrimedInstances();
+        Date date = new Date();   // given date
+        Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
+        calendar.setTime(date);   // assigns calendar to given date 
+        int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
+        int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
+        int day= (calendar.get(Calendar.DAY_OF_WEEK)+5) % 7;     
+    	if(numIdleSlaves > numPrimedInstances || !EC2Cloud.isInPIWindow(t, hour, minutes, day)){ //determine if ok to terminate
+            LOGGER.info("Idle timeout: "+c.getName());
+            c.getNode().idleTimeout();
+    	}
+    }
     /**
      * Try to connect to it ASAP.
      */
