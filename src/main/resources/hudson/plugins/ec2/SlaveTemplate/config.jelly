@@ -149,7 +149,13 @@ THE SOFTWARE.
     <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
       <f:textbox />
     </f:entry>
-
+    <f:entry title="Primed Instance Count" field="numPrimedInstances">
+	<f:textbox/>
+    </f:entry>
+    <f:entry title="Primed Instance Window" field="primedInstanceWindow">
+	<f:textbox title= "start time" field="startTime"/>
+	<f:textbox title= "end time" field="endTime"/>
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">

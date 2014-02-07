@@ -24,10 +24,13 @@
 package hudson.plugins.ec2;
 
 import hudson.model.Descriptor;
+import hudson.model.Executor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
 import java.util.logging.Logger;
+
+import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -59,37 +62,48 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     @Override
-	public synchronized long check(EC2Computer c) {
+    public synchronized long check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0) {
         	return 1;
-        }
+        String labelstr = c.getNode().getLabelString();
+       // String AMI = cloud.getTemplate(labelstr).getAMI();
+        int numIdleSlaves = countIdleSlaves(labelstr) ;
 
+        
         if (c.isIdle() && c.isOnline() && !disabled) {
-            if (idleTerminationMinutes > 0) {
-                // TODO: really think about the right strategy here
-                final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-                if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+            // TODO: really think about the right strategy here
+        	
+            final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+            	if(numIdleSlaves > 1){
                     LOGGER.info("Idle timeout: "+c.getName());
                     c.getNode().idleTimeout();
-                }
-            } else {
-                final long uptime;
-                try {
-                    uptime = c.getUptime();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
-                // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
-                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
-                    LOGGER.info("Idle timeout: "+c.getName());
-                    c.getNode().idleTimeout();
-                }
+            	}else{
+            		
+            	}
             }
         }
         return 1;
+    }
+
+    
+    public int countIdleSlaves(String labelstr) {
+    	int numIdleSlaves = 0;
+        for (EC2AbstractSlave ec2Node: NodeIterator.nodes(EC2AbstractSlave.class)){
+        	if(ec2Node.getLabelString().equals(labelstr)){ //see if it is same label
+        		for (Executor ex: ec2Node.toComputer().getExecutors()){
+                	if(ex.isIdle()){ //check if there is at least 1 idle executor
+                		numIdleSlaves++;
+                		break;
+                	}
+                }
+        	}
+
+        }
+        return numIdleSlaves;
+        
     }
 
     /**
