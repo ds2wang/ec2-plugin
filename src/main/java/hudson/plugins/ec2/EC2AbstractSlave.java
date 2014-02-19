@@ -75,6 +75,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final boolean useDedicatedTenancy;
     public List<EC2Tag> tags;
     public final String cloudName;
+    public final int numPrimedInstances;
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
@@ -100,7 +101,11 @@ public abstract class EC2AbstractSlave extends Slave {
 
 
     @DataBoundConstructor
+<<<<<<< HEAD
     public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout) throws FormException, IOException {
+=======
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances) throws FormException, IOException {
+>>>>>>> creating and terminating of instances functioning correctly
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -117,6 +122,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
+        this.numPrimedInstances = numPrimedInstances;
     }
 
     protected Object readResolve() {
