@@ -52,7 +52,9 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
+
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -224,7 +226,32 @@ public abstract class EC2Cloud extends Cloud {
 
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
+    public EC2AbstractSlave doProvision( SlaveTemplate t) {
+        checkPermission(PROVISION);
+        if(t==null) {
+            return null;
+        }
 
+        LOGGER.severe("attempt create slave from retention!");
+        StringWriter sw = new StringWriter();
+        
+        try {
+        	StreamTaskListener listener = new StreamTaskListener(sw);
+        	LOGGER.severe("attempt provision");
+            EC2AbstractSlave node = t.provision(listener);
+            LOGGER.severe("finally done");
+            Jenkins.getInstance().addNode(node);
+            //Hudson.getInstance().addNode(node);
+            LOGGER.severe("finally done2");
+            return node;
+        } catch (IOException e) {
+        	LOGGER.severe("Mess up at addnode");
+        	return null;
+        } catch (AmazonClientException e) {
+        	LOGGER.severe("some Amazon error");
+        	return null;
+        }
+    }
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if(template==null) {
@@ -319,6 +346,8 @@ public abstract class EC2Cloud extends Cloud {
 
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    	int excessWorkloadStart = excessWorkload;
+    	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
             // Count number of pending executors from spot requests
 			for(EC2SpotSlave n : NodeIterator.nodes(EC2SpotSlave.class)){
@@ -343,6 +372,9 @@ public abstract class EC2Cloud extends Cloud {
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
             final SlaveTemplate t = getTemplate(label);
+            int primedInstances = t.getNumPrimedInstances();
+            if(excessWorkloadStart == excessWorkload)
+            	excessWorkload += primedInstances * t.getNumExecutors();
             int amiCap = t.getInstanceCap();
 
             while (excessWorkload>0) {
@@ -358,6 +390,7 @@ public abstract class EC2Cloud extends Cloud {
                                 try {
                                     EC2AbstractSlave s = t.provision(new StreamTaskListener(System.out));
                                     Hudson.getInstance().addNode(s);
+                                    LOGGER.log(Level.INFO, "Added node");
                                     // EC2 instances may have a long init script. If we declare
                                     // the provisioning complete by returning without the connect
                                     // operation, NodeProvisioner may decide that it still wants

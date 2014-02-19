@@ -81,6 +81,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean useEphemeralDevices;
     public int instanceCap;
     public final boolean stopOnTerminate;
+    public final String numPrimedInstancesStr;
+    public int numPrimedInstances;
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
@@ -91,7 +93,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -113,6 +115,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.numPrimedInstancesStr = numPrimedInstancesStr;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -120,6 +123,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             this.instanceCap = Integer.parseInt(instanceCapStr);
         }
 
+        try {
+            this.numPrimedInstances = Integer.parseInt(numPrimedInstancesStr);
+        } catch (NumberFormatException nfe ) {
+            this.numPrimedInstances = 0;
+        }
         try {
             this.launchTimeout = Integer.parseInt(launchTimeoutStr);
         } catch (NumberFormatException nfe ) {
@@ -134,6 +142,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EC2Cloud getParent() {
         return parent;
+    }
+    
+    public int getNumPrimedInstances(){
+    	return numPrimedInstances;
     }
     
     public String getBidType(){
@@ -260,6 +272,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     		return provisionSpot(listener);
     	}
     	return provisionOndemand(listener);
+    }
+    
+    public Instance createNewInst(){
+    	 RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
+         AmazonEC2 ec2 = getParent().connect();
+    	 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+    	 return inst;
+    }
+    public EC2AbstractSlave provision2(TaskListener listener, String msg) throws AmazonClientException, IOException {
+        PrintStream logger = listener.getLogger();
+    	logger.println(msg);
+    	if (this.spotConfig != null){
+    		return provisionSpot(listener);
+    	}
+    	return provisionOndemand(listener);
+    }
+    public EC2AbstractSlave provision3(TaskListener listener) throws AmazonClientException, IOException, FormException{
+    	RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
+        AmazonEC2 ec2 = getParent().connect();
+   	 	Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+    	return newOndemandSlave(inst);
     }
     
     /**
@@ -553,11 +586,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0);
     }
 
     /**
