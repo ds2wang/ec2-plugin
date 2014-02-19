@@ -274,26 +274,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     	return provisionOndemand(listener);
     }
     
-    public Instance createNewInst(){
-    	 RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
-         AmazonEC2 ec2 = getParent().connect();
-    	 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
-    	 return inst;
-    }
-    public EC2AbstractSlave provision2(TaskListener listener, String msg) throws AmazonClientException, IOException {
-        PrintStream logger = listener.getLogger();
-    	logger.println(msg);
-    	if (this.spotConfig != null){
-    		return provisionSpot(listener);
-    	}
-    	return provisionOndemand(listener);
-    }
-    public EC2AbstractSlave provision3(TaskListener listener) throws AmazonClientException, IOException, FormException{
-    	RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
-        AmazonEC2 ec2 = getParent().connect();
-   	 	Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
-    	return newOndemandSlave(inst);
-    }
+  
     
     /**
      * Provisions new On-demand EC2 slave.
