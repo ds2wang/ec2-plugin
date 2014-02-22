@@ -23,12 +23,18 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.Extension;
+import hudson.model.PeriodicWork;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
 import hudson.model.Hudson;
+import hudson.model.Hudson.CloudList;
 import hudson.model.Label;
+import hudson.model.LoadStatistics;
 import hudson.model.Node;
 import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
@@ -102,6 +108,7 @@ public abstract class EC2Cloud extends Cloud {
     protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
+	protected static String cloudName;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
@@ -110,6 +117,7 @@ public abstract class EC2Cloud extends Cloud {
 
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
+        this.cloudName = id;
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
@@ -240,8 +248,8 @@ public abstract class EC2Cloud extends Cloud {
         	LOGGER.severe("attempt provision");
             EC2AbstractSlave node = t.provision(listener);
             LOGGER.severe("finally done");
-            Jenkins.getInstance().addNode(node);
-            //Hudson.getInstance().addNode(node);
+            //Jenkins.getInstance().addNode(node);
+            Hudson.getInstance().addNode(node);
             LOGGER.severe("finally done2");
             return node;
         } catch (IOException e) {
@@ -343,10 +351,33 @@ public abstract class EC2Cloud extends Cloud {
             provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
         }
     }
+    public int countIdleSlaves(String labelstr) {
+    	int numIdleSlaves = 0;
+    	for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
+    		try{
+    			if(n.getLabelString().equals(labelstr)){
+		    		for (Executor ex:n.getComputer().getExecutors()){
+		    			if(ex.isIdle()){
+		    				numIdleSlaves++;
+		    				break;
+		    			}
+		    				
+		    		}
+    			}
+    		}catch( Exception e){
+    			LOGGER.info("some exception :"+e.getMessage());
+    		}
+    		LOGGER.info("ondemandslave ++ ");
+			
+		}
 
+        return numIdleSlaves;
+        
+    }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
     	int excessWorkloadStart = excessWorkload;
+    	int slavesUsed = 0;
     	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
             // Count number of pending executors from spot requests
@@ -362,19 +393,25 @@ public abstract class EC2Cloud extends Cloud {
 						// A request can be active and not yet registered as a slave. We check above
 						// to ensure only unregistered slaves get counted
 						if(sir.getState().equals("open") || sir.getState().equals("active")){
+							slavesUsed++;
 							excessWorkload -= n.getNumExecutors();
 						}
 					}
 				}
 			}
+			int numIdleSlaves = countIdleSlaves(label.getName()) - slavesUsed;
+			
 			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
             final SlaveTemplate t = getTemplate(label);
             int primedInstances = t.getNumPrimedInstances();
-            if(excessWorkloadStart == excessWorkload)
-            	excessWorkload += primedInstances * t.getNumExecutors();
+            int primedInstancesNeeded = primedInstances - numIdleSlaves;
+            LOGGER.log(Level.INFO, "Primed instances needed: " + primedInstancesNeeded +" = primedInstances: "+primedInstances+ " - numIdleSlaves: "+numIdleSlaves);
+            LOGGER.log(Level.INFO, "labelName: "+label.getName());
+            //if(excessWorkloadStart == excessWorkload)
+            excessWorkload += primedInstancesNeeded * t.getNumExecutors();
             int amiCap = t.getInstanceCap();
 
             while (excessWorkload>0) {
@@ -424,7 +461,12 @@ public abstract class EC2Cloud extends Cloud {
 	public boolean canProvision(Label label) {
         return getTemplate(label)!=null;
     }
-
+    public static List<EC2Cloud> toEC2Cloud(CloudList clist){
+    	List<EC2Cloud> list=new ArrayList<EC2Cloud>();
+    	for(Cloud c:clist)
+    		list.add((EC2Cloud)c);
+    	return list;
+    }
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
@@ -591,6 +633,39 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
     }
+    @Extension
+    public static class NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
 
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+            Jenkins h = Jenkins.getInstance();
+            LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
+            int i=0;
+            for( Label l : h.getLabels() ){
+            	i++;
+            	LOGGER.log(Level.INFO,"Label "+i);
+            	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
+            	for(EC2Cloud c:toEC2Cloud(h.clouds)){
+            		if(c.canProvision(l))
+            			c.provision(l, 0);
+            	}
+            }
+        }
+    }
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
 }
