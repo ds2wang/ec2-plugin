@@ -78,7 +78,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @Override
     public synchronized long check(EC2Computer c) {
-
+    	LOGGER.severe("begin check: " );
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0)
         	return 1;
@@ -108,6 +108,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             	if(numIdleSlaves > numPrimedInstances){ //determine if ok to terminate
                     LOGGER.info("Idle timeout: "+c.getName());
                     c.getNode().idleTimeout();
+            	}else{
+            		for(int i=0; i < numPrimedInstances - numIdleSlaves; i++){
+	            		//EC2AbstractSlave newSlave = c.getCloud().doProvision(t);
+	            		//newSlave.toComputer().connect(false);
+            		}
             	}
             }
         }
@@ -119,13 +124,15 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     	int numIdleSlaves = 0;
     	for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
     		try{
-	    		for (Executor ex:n.getComputer().getExecutors()){
-	    			if(ex.isIdle()){
-	    				numIdleSlaves++;
-	    				break;
-	    			}
-	    				
-	    		}
+    			if(n.getLabelString().equals(labelstr)&&n.getComputer().isOnline()){
+		    		for (Executor ex:n.getComputer().getExecutors()){
+		    			if(ex.isIdle()){
+		    				numIdleSlaves++;
+		    				break;
+		    			}
+		    				
+		    		}
+    			}
     		}catch( Exception e){
     			LOGGER.info("some exception :"+e.getMessage());
     		}

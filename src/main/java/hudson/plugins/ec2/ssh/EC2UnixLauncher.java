@@ -26,7 +26,6 @@ package hudson.plugins.ec2.ssh;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
