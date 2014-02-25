@@ -79,6 +79,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     @Override
     public synchronized long check(EC2Computer c) {
     	LOGGER.severe("begin check: " );
+    	
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0)
         	return 1;
@@ -99,11 +100,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
             	
                 SlaveTemplate t = null;
+                
                 for (SlaveTemplate temp:c.getCloud().getTemplates()){
                 	if (temp.getLabelString().equals(labelstr)){
                 		t=temp;
                 	}
                 }
+               // LOGGER.info("PIWINDOW: "+ t.getPIWindow().get(0).getStartTime());
                 int numPrimedInstances = t.getNumPrimedInstances();
             	if(numIdleSlaves > numPrimedInstances){ //determine if ok to terminate
                     LOGGER.info("Idle timeout: "+c.getName());
