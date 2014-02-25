@@ -46,6 +46,8 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -414,9 +416,10 @@ public abstract class EC2Cloud extends Cloud {
             Date date = new Date();   // given date
             Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
             calendar.setTime(date);   // assigns calendar to given date 
+            DateFormat dateFormat = new SimpleDateFormat("HH:mm");
             int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
             int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
-            LOGGER.log(Level.INFO, "checking time period: "+hour+":"+minutes);
+            LOGGER.log(Level.INFO, "checking time period: "+dateFormat.format(calendar.getTime()));
             if(isInPIWindow(t, hour, minutes)){
             	excessWorkload += primedInstancesNeeded * t.getNumExecutors();
             	LOGGER.log(Level.INFO, "in time period");

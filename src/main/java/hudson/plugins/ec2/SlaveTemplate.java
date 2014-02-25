@@ -119,7 +119,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
-        this.numPrimedInstancesStr = "0";
+        this.numPrimedInstancesStr = numPrimedInstancesStr;
         this.PIWindow = PIWindow;
         //this.PIWindow = new ArrayList<EC2PIWindow>();
         //this.PIWindow.add(new EC2PIWindow("11:11", "22:22"));
