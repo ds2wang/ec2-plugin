@@ -121,8 +121,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = usePrivateDnsName;
         this.numPrimedInstancesStr = numPrimedInstancesStr;
         this.PIWindow = PIWindow;
-        //this.PIWindow = new ArrayList<EC2PIWindow>();
-        //this.PIWindow.add(new EC2PIWindow("11:11", "22:22"));
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
