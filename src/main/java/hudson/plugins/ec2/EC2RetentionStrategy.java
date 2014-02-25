@@ -34,6 +34,9 @@ import hudson.util.TimeUnit2;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -106,23 +109,56 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 		t=temp;
                 	}
                 }
-               // LOGGER.info("PIWINDOW: "+ t.getPIWindow().get(0).getStartTime());
                 int numPrimedInstances = t.getNumPrimedInstances();
-            	if(numIdleSlaves > numPrimedInstances){ //determine if ok to terminate
+                Date date = new Date();   // given date
+                Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
+                calendar.setTime(date);   // assigns calendar to given date 
+                int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
+                int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
+            	if(numIdleSlaves > numPrimedInstances || !isInPIWindow(t, hour, minutes )){ //determine if ok to terminate
                     LOGGER.info("Idle timeout: "+c.getName());
                     c.getNode().idleTimeout();
-            	}else{
-            		for(int i=0; i < numPrimedInstances - numIdleSlaves; i++){
-	            		//EC2AbstractSlave newSlave = c.getCloud().doProvision(t);
-	            		//newSlave.toComputer().connect(false);
-            		}
             	}
             }
         }
         return 1;
     }
 
-    
+    public boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
+    	EC2PIWindow window1 = t.getPIWindow().get(0);
+    	int curTime = hour*60+minute;
+    	int start, end;
+        if ((window1.getStartTime() == null || window1.getStartTime().trim() == "")
+        		&& (window1.getEndTime() == null || window1.getEndTime().trim() == "")) return true;
+        try {
+        	String [] startTimeStr =  window1.getStartTime().trim().split(":");
+        	String [] endTimeStr =  window1.getEndTime().trim().split(":");
+            int startHour = Integer.parseInt(startTimeStr[0]);
+            int startMin = Integer.parseInt(startTimeStr[1]);
+            int endHour = Integer.parseInt(endTimeStr[0]);
+            int endMin = Integer.parseInt(endTimeStr[1]);
+            if(endHour*60 + endMin < startHour*60 + startMin){
+                if(curTime<startMin + startHour*60){
+                      start = startHour*60 + startMin-1440;
+                      end = endHour*60 + endMin;
+                }else{
+                      start = startHour*60 + startMin;
+                      end = endHour*60 + endMin + 1440;
+                }
+
+         }else{
+                start = startHour*60 + startMin;
+                end = endHour*60 + endMin;
+         }
+         if(curTime >= start && curTime < end)
+                return true;
+        } catch ( NumberFormatException nfe ) {
+        	
+        } catch (Exception e){
+        	
+        }
+    	return false;
+    }
     public int countIdleSlaves(String labelstr, EC2Computer c) {
     	int numIdleSlaves = 0;
     	for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){

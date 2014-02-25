@@ -47,9 +47,11 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
@@ -409,7 +411,18 @@ public abstract class EC2Cloud extends Cloud {
             LOGGER.log(Level.INFO, "Primed instances needed: " + primedInstancesNeeded +" = primedInstances: "+primedInstances+ " - numIdleSlaves: "+numIdleSlaves);
             LOGGER.log(Level.INFO, "labelName: "+label.getName());
             //if(excessWorkloadStart == excessWorkload)
-            excessWorkload += primedInstancesNeeded * t.getNumExecutors();
+            Date date = new Date();   // given date
+            Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
+            calendar.setTime(date);   // assigns calendar to given date 
+            int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
+            int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
+            LOGGER.log(Level.INFO, "checking time period: "+hour+":"+minutes);
+            if(isInPIWindow(t, hour, minutes)){
+            	excessWorkload += primedInstancesNeeded * t.getNumExecutors();
+            	LOGGER.log(Level.INFO, "in time period");
+            }else{
+            	LOGGER.log(Level.INFO, "not in time period");
+            }
             int amiCap = t.getInstanceCap();
 
             while (excessWorkload>0) {
@@ -498,6 +511,44 @@ public abstract class EC2Cloud extends Cloud {
         return client;
     }
 
+    
+    public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
+    	EC2PIWindow window1 = t.getPIWindow().get(0);
+    	int curTime = hour*60+minute;
+    	int start, end;
+        if ((window1.getStartTime() == null || window1.getStartTime().trim() == "")
+        		&& (window1.getEndTime() == null || window1.getEndTime().trim() == "")) return true;
+        try {
+        	String [] startTimeStr =  window1.getStartTime().trim().split(":");
+        	String [] endTimeStr =  window1.getEndTime().trim().split(":");
+        	LOGGER.log(Level.INFO, "startTime:" + window1.getStartTime().trim());
+        	LOGGER.log(Level.INFO, "endTime:" + window1.getEndTime().trim());
+            int startHour = Integer.parseInt(startTimeStr[0]);
+            int startMin = Integer.parseInt(startTimeStr[1]);
+            int endHour = Integer.parseInt(endTimeStr[0]);
+            int endMin = Integer.parseInt(endTimeStr[1]);
+            if(endHour*60 + endMin < startHour*60 + startMin){
+                if(curTime<startMin + startHour*60){
+                      start = startHour*60 + startMin-1440;
+                      end = endHour*60 + endMin;
+                }else{
+                      start = startHour*60 + startMin;
+                      end = endHour*60 + endMin + 1440;
+                }
+
+         }else{
+                start = startHour*60 + startMin;
+                end = endHour*60 + endMin;
+         }
+         if(curTime >= start && curTime < end)
+                return true;
+        } catch ( NumberFormatException nfe ) {
+        	
+        } catch (Exception e){
+        	
+        }
+    	return false;
+    }
     /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
