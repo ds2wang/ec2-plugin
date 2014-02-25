@@ -62,24 +62,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
 	
-	public class PIWindow  {
-	    private String startTime;
-	    private String endTime;
-
-	    public String getStartTime() {
-	        return startTime;
-	    }
-	    
-	    public String getEndTime() {
-	        return endTime;
-	    }
-	    
-	    @DataBoundConstructor
-	    public PIWindow(String startTime, String endTime)  {
-	    	this.startTime = startTime.trim();
-	        this.endTime = endTime.trim();
-	    }
-	}
+	
     public final String ami;
     public final String description;
     public final String zone;
@@ -107,14 +90,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
-    public final List<PIWindow> PIWindow;
+    public final List<EC2PIWindow> PIWindow;
     public int launchTimeout;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<PIWindow> PIWindow) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -136,14 +119,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
-        this.numPrimedInstancesStr = numPrimedInstancesStr;
-        if(PIWindow!=null)
-        	this.PIWindow = PIWindow;
-        else{
-        	this.PIWindow = new ArrayList<PIWindow>();
-        	this.PIWindow.add(new PIWindow("11:11","22:22"));
-        }
-       
+        this.numPrimedInstancesStr = "0";
+        this.PIWindow = PIWindow;
+        //this.PIWindow = new ArrayList<EC2PIWindow>();
+        //this.PIWindow.add(new EC2PIWindow("11:11", "22:22"));
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -182,17 +161,28 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     	return spotConfig.spotInstanceBidType;
     }
 
-    public List<PIWindow> getPIWindow(){
+    public List<EC2PIWindow> getPIWindow(){
+    	List<EC2PIWindow> PIWindowList = new ArrayList<EC2PIWindow>();
 		if (PIWindow == null) {
-			return new ArrayList<PIWindow>();
+			return new ArrayList<EC2PIWindow>();
 		}
-    	return PIWindow;
+		for(EC2PIWindow li: PIWindow){
+			if(li!=null)
+				PIWindowList.add(li);
+		}
+    	return PIWindowList;
     }
     public String getStartTime(){
-    	return PIWindow.get(0).getStartTime();
+    	if(PIWindow.size() != 0)
+    		return PIWindow.get(0).getStartTime();
+    	else 
+    		return "";
     }
     public String getEndTime(){
-    	return PIWindow.get(0).getEndTime();
+    	if(PIWindow.size() != 0)
+    		return PIWindow.get(0).getEndTime();
+    	else
+    		return "";
     }
     public String getLabelString() {
         return labels;
@@ -810,7 +800,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
         }
         public FormValidation doCheckStartTime(@QueryParameter String value) {
-            if (value == null || value.trim().equals("")) return FormValidation.ok();
+            if (value == null || value.trim() == "") return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) return FormValidation.ok();
+            }
+            catch ( NumberFormatException nfe ) {}
+            return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
+        } 
+        public FormValidation doCheckEndTime(@QueryParameter String value) {
+            if (value == null || value.trim() == "") return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();
@@ -818,12 +817,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             catch ( NumberFormatException nfe ) {}
             return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
         }        
-        public FormValidation doCheckPIWindow(@QueryParameter List<PIWindow> PIWindow) {
-        	if( PIWindow==null )
+        public FormValidation doCheckPIWindow(@QueryParameter EC2PIWindow window1) {
+        	if( window1==null )
         		return FormValidation.ok();
-        	PIWindow window1 = PIWindow.get(0);
-            if ((window1.getStartTime() == null || window1.getStartTime().trim().equals(""))
-            		&& (window1.getEndTime() == null || window1.getEndTime().trim().equals(""))) return FormValidation.ok();
+        	//EC2PIWindow window1 = PIWindow.get(0);
+            if ((window1.getStartTime() == null || window1.getStartTime().trim() == "")
+            		&& (window1.getEndTime() == null || window1.getEndTime().trim() == "")) return FormValidation.ok();
             try {
             	String [] startTimeStr =  window1.getStartTime().trim().split(":");
             	String [] endTimeStr =  window1.getStartTime().trim().split(":");
