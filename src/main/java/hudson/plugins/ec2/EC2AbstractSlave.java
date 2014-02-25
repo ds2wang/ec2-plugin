@@ -29,7 +29,6 @@ import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
-import hudson.plugins.ec2.SlaveTemplate.PIWindow;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
@@ -77,7 +76,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public List<EC2Tag> tags;
     public final String cloudName;
     public final int numPrimedInstances;
-    public final List<SlaveTemplate.PIWindow> PIWindow;
+    public final List<EC2PIWindow> PIWindow;
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
     public String privateDNS;
@@ -102,7 +101,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<SlaveTemplate.PIWindow> PIWindow) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -383,9 +382,9 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
-    public List<SlaveTemplate.PIWindow> getPIWindow(){
+    public List<EC2PIWindow> getPIWindow(){
 		if (PIWindow == null) {
-			return new ArrayList<PIWindow>();
+			return new ArrayList<EC2PIWindow>();
 		}
     	return PIWindow;
     }
