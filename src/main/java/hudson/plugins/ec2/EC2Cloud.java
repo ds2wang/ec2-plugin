@@ -236,32 +236,7 @@ public abstract class EC2Cloud extends Cloud {
 
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
-    public EC2AbstractSlave doProvision( SlaveTemplate t) {
-        checkPermission(PROVISION);
-        if(t==null) {
-            return null;
-        }
 
-        LOGGER.severe("attempt create slave from retention!");
-        StringWriter sw = new StringWriter();
-        
-        try {
-        	StreamTaskListener listener = new StreamTaskListener(sw);
-        	LOGGER.severe("attempt provision");
-            EC2AbstractSlave node = t.provision(listener);
-            LOGGER.severe("finally done");
-            //Jenkins.getInstance().addNode(node);
-            Hudson.getInstance().addNode(node);
-            LOGGER.severe("finally done2");
-            return node;
-        } catch (IOException e) {
-        	LOGGER.severe("Mess up at addnode");
-        	return null;
-        } catch (AmazonClientException e) {
-        	LOGGER.severe("some Amazon error");
-        	return null;
-        }
-    }
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if(template==null) {
@@ -353,11 +328,11 @@ public abstract class EC2Cloud extends Cloud {
             provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
         }
     }
-    public int countIdleSlaves(String labelstr) {
+    public static int countIdleSlaves(String labelstr) {
     	int numIdleSlaves = 0;
-    	for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
+    	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
     		try{
-    			if(n.getLabelString().equals(labelstr)){
+    			if(n.getLabelString().equals(labelstr) && n.getComputer().isOnline()){
 		    		for (Executor ex:n.getComputer().getExecutors()){
 		    			if(ex.isIdle()){
 		    				numIdleSlaves++;
@@ -378,7 +353,6 @@ public abstract class EC2Cloud extends Cloud {
     }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
-    	int excessWorkloadStart = excessWorkload;
     	int slavesUsed = 0;
     	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
@@ -441,7 +415,6 @@ public abstract class EC2Cloud extends Cloud {
                                 try {
                                     EC2AbstractSlave s = t.provision(new StreamTaskListener(System.out));
                                     Hudson.getInstance().addNode(s);
-                                    LOGGER.log(Level.INFO, "Added node");
                                     // EC2 instances may have a long init script. If we declare
                                     // the provisioning complete by returning without the connect
                                     // operation, NodeProvisioner may decide that it still wants
@@ -516,22 +489,23 @@ public abstract class EC2Cloud extends Cloud {
 
     
     public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
-    	EC2PIWindow window1 = t.getPIWindow().get(0);
+    	EC2PIWindow window = t.getPIWindow().get(0);
     	int curTime = hour*60+minute;
     	int start, end;
-        if ((window1.getStartTime() == null || window1.getStartTime().trim() == "")
-        		&& (window1.getEndTime() == null || window1.getEndTime().trim() == "")) return true;
+        if ((window.getStartTime() == null || window.getStartTime().trim() == "")
+        		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
+        	return true;
         try {
-        	String [] startTimeStr =  window1.getStartTime().trim().split(":");
-        	String [] endTimeStr =  window1.getEndTime().trim().split(":");
-        	LOGGER.log(Level.INFO, "startTime:" + window1.getStartTime().trim());
-        	LOGGER.log(Level.INFO, "endTime:" + window1.getEndTime().trim());
+        	String [] startTimeStr =  window.getStartTime().trim().split(":");
+        	String [] endTimeStr =  window.getEndTime().trim().split(":");
+        	LOGGER.log(Level.INFO, "startTime:" + window.getStartTime().trim());
+        	LOGGER.log(Level.INFO, "endTime:" + window.getEndTime().trim());
             int startHour = Integer.parseInt(startTimeStr[0]);
             int startMin = Integer.parseInt(startTimeStr[1]);
             int endHour = Integer.parseInt(endTimeStr[0]);
             int endMin = Integer.parseInt(endTimeStr[1]);
             if(endHour*60 + endMin < startHour*60 + startMin){
-                if(curTime<startMin + startHour*60){
+                if(curTime < startMin + startHour*60){
                       start = startHour*60 + startMin-1440;
                       end = endHour*60 + endMin;
                 }else{
@@ -686,7 +660,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
     @Extension
-    public static class NodeProvisionerInvoker extends PeriodicWork {
+    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
         /**
          * Give some initial warm up time so that statically connected slaves
          * can be brought online before we start allocating more.
