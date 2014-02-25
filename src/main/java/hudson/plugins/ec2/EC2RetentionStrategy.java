@@ -81,7 +81,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @Override
     public synchronized long check(EC2Computer c) {
-    	LOGGER.severe("begin check: " );
     	
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0)
