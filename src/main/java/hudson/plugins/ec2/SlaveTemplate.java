@@ -160,28 +160,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public List<EC2PIWindow> getPIWindow(){
-    	List<EC2PIWindow> PIWindowList = new ArrayList<EC2PIWindow>();
-		if (PIWindow == null) {
+		if (PIWindow == null) 
 			return new ArrayList<EC2PIWindow>();
-		}
-		for(EC2PIWindow li: PIWindow){
-			if(li!=null)
-				PIWindowList.add(li);
-		}
-    	return PIWindowList;
+		return PIWindow;
     }
+    public EC2PIWindow getEC2PIWindow(){
+		if (PIWindow == null) 
+			return new EC2PIWindow("","");
+		return PIWindow.get(0);
+    }
+    
     public String getStartTime(){
-    	if(PIWindow.size() != 0)
-    		return PIWindow.get(0).getStartTime();
-    	else 
-    		return "";
+    	return getEC2PIWindow().getStartTime();
     }
+    
     public String getEndTime(){
-    	if(PIWindow.size() != 0)
-    		return PIWindow.get(0).getEndTime();
-    	else
-    		return "";
+    	return getEC2PIWindow().getEndTime();
     }
+    
     public String getLabelString() {
         return labels;
     }
@@ -790,47 +786,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             catch ( NumberFormatException nfe ) {}
             return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
         }
-        public FormValidation doCheckStartTime(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
-            try {
-                int val = Integer.parseInt(value);
-                if (val >= 0) return FormValidation.ok();
-            }
-            catch ( NumberFormatException nfe ) {}
-            return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
-        } 
-        public FormValidation doCheckEndTime(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
-            try {
-                int val = Integer.parseInt(value);
-                if (val >= 0) return FormValidation.ok();
-            }
-            catch ( NumberFormatException nfe ) {}
-            return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
-        }        
-        public FormValidation doCheckPIWindow(@QueryParameter EC2PIWindow window1) {
-        	if( window1==null )
-        		return FormValidation.ok();
-        	//EC2PIWindow window1 = PIWindow.get(0);
-            if ((window1.getStartTime() == null || window1.getStartTime().trim() == "")
-            		&& (window1.getEndTime() == null || window1.getEndTime().trim() == "")) return FormValidation.ok();
-            try {
-            	String [] startTimeStr =  window1.getStartTime().trim().split(":");
-            	String [] endTimeStr =  window1.getStartTime().trim().split(":");
-                int startHour = Integer.parseInt(startTimeStr[0]);
-                int startMin = Integer.parseInt(startTimeStr[1]);
-                int endHour = Integer.parseInt(endTimeStr[0]);
-                int endMin = Integer.parseInt(endTimeStr[1]);
-                if(startHour>=0 && startHour<24 && startMin >=0 && startMin <60 && endHour>=0 && endHour<24 && endMin >0 && endMin <60)
-                	 return FormValidation.ok();
-            } catch ( NumberFormatException nfe ) {
-            	
-            } catch (Exception e){
-            	
-            }
-            return FormValidation.error("Window must be in format hh:mm");
-        }
-
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
             if (value == null || value.trim() == "") return FormValidation.ok();
