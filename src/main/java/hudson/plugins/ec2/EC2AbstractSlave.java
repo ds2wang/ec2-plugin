@@ -35,6 +35,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
@@ -74,7 +75,8 @@ public abstract class EC2AbstractSlave extends Slave {
     public final boolean usePrivateDnsName;
     public List<EC2Tag> tags;
     public final String cloudName;
-
+    public final int numPrimedInstances;
+    public final List<EC2PIWindow> PIWindow;
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
     public String privateDNS;
@@ -99,7 +101,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -115,6 +117,8 @@ public abstract class EC2AbstractSlave extends Slave {
         this.usePrivateDnsName = usePrivateDnsName;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
+        this.numPrimedInstances = numPrimedInstances;
+        this.PIWindow = PIWindow;
     }
 
     protected Object readResolve() {
@@ -378,7 +382,12 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
-
+    public List<EC2PIWindow> getPIWindow(){
+		if (PIWindow == null) {
+			return new ArrayList<EC2PIWindow>();
+		}
+    	return PIWindow;
+    }
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {

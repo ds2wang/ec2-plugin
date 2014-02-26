@@ -23,12 +23,18 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.Extension;
+import hudson.model.PeriodicWork;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
 import hudson.model.Hudson;
+import hudson.model.Hudson.CloudList;
 import hudson.model.Label;
+import hudson.model.LoadStatistics;
 import hudson.model.Node;
 import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
@@ -40,10 +46,14 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
@@ -52,7 +62,9 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
+
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -100,6 +112,7 @@ public abstract class EC2Cloud extends Cloud {
     protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
+	private boolean pendingProvision = false;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
@@ -316,9 +329,36 @@ public abstract class EC2Cloud extends Cloud {
             provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
         }
     }
+    public static int countIdleSlaves(String labelstr) {
+    	int numIdleSlaves = 0;
+    	//for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
+    	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
+    		try{
+    			if(n.getLabelString().equals(labelstr) && n.getComputer().isOnline()){
+		    		for (Executor ex:n.getComputer().getExecutors()){
+		    			if(ex.isIdle()){
+		    				numIdleSlaves++;
+		    				break;
+		    			}
+		    				
+		    		}
+    			}
+    		}catch( Exception e){
+    			LOGGER.info("some exception :"+e.getMessage());
+    		}
+    		LOGGER.info("ondemandslave ++ ");
+			
+		}
 
+        return numIdleSlaves;
+        
+    }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    	if(pendingProvision)
+            return Collections.emptyList();
+    	int slavesUsed = 0;
+    	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
             // Count number of pending executors from spot requests
 			for(EC2SpotSlave n : NodeIterator.nodes(EC2SpotSlave.class)){
@@ -333,16 +373,37 @@ public abstract class EC2Cloud extends Cloud {
 						// A request can be active and not yet registered as a slave. We check above
 						// to ensure only unregistered slaves get counted
 						if(sir.getState().equals("open") || sir.getState().equals("active")){
+							slavesUsed++;
 							excessWorkload -= n.getNumExecutors();
 						}
 					}
 				}
 			}
+			int numIdleSlaves = countIdleSlaves(label.getName()) - slavesUsed;
+			
 			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
             final SlaveTemplate t = getTemplate(label);
+            int primedInstances = t.getNumPrimedInstances();
+            int primedInstancesNeeded = primedInstances - numIdleSlaves;
+            LOGGER.log(Level.INFO, "Primed instances needed: " + primedInstancesNeeded +" = primedInstances: "+primedInstances+ " - numIdleSlaves: "+numIdleSlaves);
+            LOGGER.log(Level.INFO, "labelName: "+label.getName());
+            //if(excessWorkloadStart == excessWorkload)
+            Date date = new Date();   // given date
+            Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
+            calendar.setTime(date);   // assigns calendar to given date 
+            DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+            int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
+            int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
+            LOGGER.log(Level.INFO, "checking time period: "+dateFormat.format(calendar.getTime()));
+            if(isInPIWindow(t, hour, minutes)){
+            	excessWorkload += primedInstancesNeeded * t.getNumExecutors();
+            	LOGGER.log(Level.INFO, "in time period");
+            }else{
+            	LOGGER.log(Level.INFO, "not in time period");
+            }
             int amiCap = t.getInstanceCap();
 
             while (excessWorkload>0) {
@@ -380,9 +441,12 @@ public abstract class EC2Cloud extends Cloud {
                 excessWorkload -= t.getNumExecutors();
 
             }
+            LOGGER.log(Level.WARNING,"done prov");
+            pendingProvision = false;
             return r;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
+            pendingProvision = false;
             return Collections.emptyList();
         }
     }
@@ -391,7 +455,12 @@ public abstract class EC2Cloud extends Cloud {
 	public boolean canProvision(Label label) {
         return getTemplate(label)!=null;
     }
-
+    public static List<EC2Cloud> toEC2Cloud(CloudList clist){
+    	List<EC2Cloud> list=new ArrayList<EC2Cloud>();
+    	for(Cloud c:clist)
+    		list.add((EC2Cloud)c);
+    	return list;
+    }
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
@@ -425,6 +494,52 @@ public abstract class EC2Cloud extends Cloud {
         return client;
     }
 
+    
+    public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
+    	EC2PIWindow window = t.getEC2PIWindow();
+        if ((window.getStartTime() == null || window.getStartTime().trim() == "")
+        		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
+        	return true;
+        try {
+        	String [] startTimeStr =  window.getStartTime().trim().split(":");
+        	String [] endTimeStr =  window.getEndTime().trim().split(":");
+        	LOGGER.log(Level.INFO, "startTime:" + window.getStartTime().trim());
+        	LOGGER.log(Level.INFO, "endTime:" + window.getEndTime().trim());
+            int startHour = Integer.parseInt(startTimeStr[0]);
+            int startMin = Integer.parseInt(startTimeStr[1]);
+            int endHour = Integer.parseInt(endTimeStr[0]);
+            int endMin = Integer.parseInt(endTimeStr[1]);
+            if(isInTimeWindow(hour, minute, startHour, startMin, endHour, endMin))
+            	return true;
+
+        } catch ( NumberFormatException nfe ) {
+        	
+        } catch (Exception e){
+        	
+        }
+    	return false;
+    }
+    public static boolean isInTimeWindow(int hour, int minute, int startHour, int startMin, int endHour, int endMin){
+    	int curTime = hour*60+minute;
+    	int start, end;
+        if(endHour*60 + endMin < startHour*60 + startMin){
+            if(curTime < startMin + startHour*60){
+                  start = startHour*60 + startMin-1440;
+                  end = endHour*60 + endMin;
+            }else{
+                  start = startHour*60 + startMin;
+                  end = endHour*60 + endMin + 1440;
+            }
+
+        }else{
+            start = startHour*60 + startMin;
+            end = endHour*60 + endMin;
+        }
+        if(curTime >= start && curTime < end)
+            return true;
+        return false;
+    	
+    }
     /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
@@ -558,6 +673,118 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
     }
+    @Extension
+    public static class AmazonEC2NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*100);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
 
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+        	
+        	if(running)
+        		return;
+        	running = true;
+            Jenkins h = Jenkins.getInstance();
+            LOGGER.log(Level.INFO,"clouds :"+h.clouds.size());
+            LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
+            int i=0;
+            for( Label l : h.getLabels() ){
+            	i++;
+            	LOGGER.log(Level.INFO,"Label "+i);
+            	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
+            	for(EC2Cloud c:toEC2Cloud(h.clouds)){
+            		if(c.canProvision(l))
+            			c.provision(l, 0);
+            	}
+            }
+            running = false;
+        }
+    }
+    @Extension
+    public static class NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+
+        }
+    }
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
+    @Extension
+    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+
+        }
+    }
+    @Extension
+    public static class EC3NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+
+        }
+    }
 }
