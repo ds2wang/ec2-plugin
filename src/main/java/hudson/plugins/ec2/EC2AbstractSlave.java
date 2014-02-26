@@ -385,9 +385,9 @@ public abstract class EC2AbstractSlave extends Slave {
         return usePrivateDnsName;
     }
     public List<EC2PIWindow> getPIWindow(){
-		if (PIWindow == null) {
-			return new ArrayList<EC2PIWindow>();
-		}
+    	if (PIWindow == null) {
+    		return new ArrayList<EC2PIWindow>();
+    	}
     	return PIWindow;
     }
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {

@@ -112,7 +112,6 @@ public abstract class EC2Cloud extends Cloud {
     protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
-	private boolean pendingProvision = false;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
@@ -331,7 +330,6 @@ public abstract class EC2Cloud extends Cloud {
     }
     public static int countIdleSlaves(String labelstr) {
     	int numIdleSlaves = 0;
-    	//for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
     	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
     		try{
     			if(n.getLabelString().equals(labelstr) && n.getComputer().isOnline()){
@@ -355,8 +353,6 @@ public abstract class EC2Cloud extends Cloud {
     }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
-    	if(pendingProvision)
-            return Collections.emptyList();
     	int slavesUsed = 0;
     	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
@@ -390,7 +386,6 @@ public abstract class EC2Cloud extends Cloud {
             int primedInstancesNeeded = primedInstances - numIdleSlaves;
             LOGGER.log(Level.INFO, "Primed instances needed: " + primedInstancesNeeded +" = primedInstances: "+primedInstances+ " - numIdleSlaves: "+numIdleSlaves);
             LOGGER.log(Level.INFO, "labelName: "+label.getName());
-            //if(excessWorkloadStart == excessWorkload)
             Date date = new Date();   // given date
             Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
             calendar.setTime(date);   // assigns calendar to given date 
@@ -442,11 +437,9 @@ public abstract class EC2Cloud extends Cloud {
 
             }
             LOGGER.log(Level.WARNING,"done prov");
-            pendingProvision = false;
             return r;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
-            pendingProvision = false;
             return Collections.emptyList();
         }
     }
@@ -501,15 +494,15 @@ public abstract class EC2Cloud extends Cloud {
         		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
         	return true;
         try {
-        	String [] startTimeStr =  window.getStartTime().trim().split(":");
-        	String [] endTimeStr =  window.getEndTime().trim().split(":");
-        	LOGGER.log(Level.INFO, "startTime:" + window.getStartTime().trim());
-        	LOGGER.log(Level.INFO, "endTime:" + window.getEndTime().trim());
-            int startHour = Integer.parseInt(startTimeStr[0]);
-            int startMin = Integer.parseInt(startTimeStr[1]);
-            int endHour = Integer.parseInt(endTimeStr[0]);
-            int endMin = Integer.parseInt(endTimeStr[1]);
-            if(isInTimeWindow(hour, minute, startHour, startMin, endHour, endMin))
+			String [] startTimeStr =  window.getStartTime().trim().split(":");
+			String [] endTimeStr =  window.getEndTime().trim().split(":");
+			LOGGER.log(Level.INFO, "startTime:" + window.getStartTime().trim());
+			LOGGER.log(Level.INFO, "endTime:" + window.getEndTime().trim());
+			int startHour = Integer.parseInt(startTimeStr[0]);
+			int startMin = Integer.parseInt(startTimeStr[1]);
+			int endHour = Integer.parseInt(endTimeStr[0]);
+			int endMin = Integer.parseInt(endTimeStr[1]);
+			if(isInTimeWindow(hour, minute, startHour, startMin, endHour, endMin))
             	return true;
 
         } catch ( NumberFormatException nfe ) {
@@ -520,24 +513,24 @@ public abstract class EC2Cloud extends Cloud {
     	return false;
     }
     public static boolean isInTimeWindow(int hour, int minute, int startHour, int startMin, int endHour, int endMin){
-    	int curTime = hour*60+minute;
-    	int start, end;
-        if(endHour*60 + endMin < startHour*60 + startMin){
-            if(curTime < startMin + startHour*60){
-                  start = startHour*60 + startMin-1440;
-                  end = endHour*60 + endMin;
-            }else{
-                  start = startHour*60 + startMin;
-                  end = endHour*60 + endMin + 1440;
-            }
-
-        }else{
-            start = startHour*60 + startMin;
-            end = endHour*60 + endMin;
-        }
-        if(curTime >= start && curTime < end)
-            return true;
-        return false;
+		int curTime = hour*60+minute;
+		int start, end;
+		if(endHour*60 + endMin < startHour*60 + startMin){
+		    if(curTime < startMin + startHour*60){
+		          start = startHour*60 + startMin-1440;
+		          end = endHour*60 + endMin;
+		    }else{
+		          start = startHour*60 + startMin;
+		          end = endHour*60 + endMin + 1440;
+		    }
+		
+		}else{
+		    start = startHour*60 + startMin;
+		    end = endHour*60 + endMin;
+		}
+		if(curTime >= start && curTime < end)
+		    return true;
+		return false;
     	
     }
     /***
@@ -679,7 +672,6 @@ public abstract class EC2Cloud extends Cloud {
          * Give some initial warm up time so that statically connected slaves
          * can be brought online before we start allocating more.
          */
-    	public static boolean running=false;
     	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
     	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*100);
     	 
@@ -694,97 +686,21 @@ public abstract class EC2Cloud extends Cloud {
 
         @Override
         protected void doRun() {
-        	
-        	if(running)
-        		return;
-        	running = true;
-            Jenkins h = Jenkins.getInstance();
-            LOGGER.log(Level.INFO,"clouds :"+h.clouds.size());
-            LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
-            int i=0;
-            for( Label l : h.getLabels() ){
-            	i++;
-            	LOGGER.log(Level.INFO,"Label "+i);
-            	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
-            	for(EC2Cloud c:toEC2Cloud(h.clouds)){
-            		if(c.canProvision(l))
-            			c.provision(l, 0);
-            	}
-            }
-            running = false;
-        }
-    }
-    @Extension
-    public static class NodeProvisionerInvoker extends PeriodicWork {
-        /**
-         * Give some initial warm up time so that statically connected slaves
-         * can be brought online before we start allocating more.
-         */
-    	public static boolean running=false;
-    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
-    	 
-        @Override
-        public long getInitialDelay() {
-            return INITIALDELAY;
-        }
-
-        public long getRecurrencePeriod() {
-            return RECURRENCEPERIOD;
-        }
-
-        @Override
-        protected void doRun() {
-
-        }
+			
+		    Jenkins h = Jenkins.getInstance();
+		    LOGGER.log(Level.INFO,"clouds :"+h.clouds.size());
+		    LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
+		    int i=0;
+		    for( Label l : h.getLabels() ){
+		    	i++;
+		    	LOGGER.log(Level.INFO,"Label "+i);
+		    	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
+		    	for(EC2Cloud c:toEC2Cloud(h.clouds)){
+		    		if(c.canProvision(l))
+		    			c.provision(l, 0);
+		    	}
+		    }
+		}
     }
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
-    @Extension
-    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
-        /**
-         * Give some initial warm up time so that statically connected slaves
-         * can be brought online before we start allocating more.
-         */
-    	public static boolean running=false;
-    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
-    	 
-        @Override
-        public long getInitialDelay() {
-            return INITIALDELAY;
-        }
-
-        public long getRecurrencePeriod() {
-            return RECURRENCEPERIOD;
-        }
-
-        @Override
-        protected void doRun() {
-
-        }
-    }
-    @Extension
-    public static class EC3NodeProvisionerInvoker extends PeriodicWork {
-        /**
-         * Give some initial warm up time so that statically connected slaves
-         * can be brought online before we start allocating more.
-         */
-    	public static boolean running=false;
-    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
-    	 
-        @Override
-        public long getInitialDelay() {
-            return INITIALDELAY;
-        }
-
-        public long getRecurrencePeriod() {
-            return RECURRENCEPERIOD;
-        }
-
-        @Override
-        protected void doRun() {
-
-        }
-    }
 }
