@@ -112,7 +112,7 @@ public abstract class EC2Cloud extends Cloud {
     protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
-	private int pendingSlaves = 0;
+	private boolean pendingProvision = false;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
@@ -355,6 +355,8 @@ public abstract class EC2Cloud extends Cloud {
     }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    	if(pendingProvision)
+            return Collections.emptyList();
     	int slavesUsed = 0;
     	LOGGER.log(Level.INFO, "Excess workload start: " + excessWorkload);
         try {
@@ -439,9 +441,12 @@ public abstract class EC2Cloud extends Cloud {
                 excessWorkload -= t.getNumExecutors();
 
             }
+            LOGGER.log(Level.WARNING,"done prov");
+            pendingProvision = false;
             return r;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
+            pendingProvision = false;
             return Collections.emptyList();
         }
     }
@@ -669,11 +674,53 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
     @Extension
-    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
+    public static class AmazonEC2NodeProvisionerInvoker extends PeriodicWork {
         /**
          * Give some initial warm up time so that statically connected slaves
          * can be brought online before we start allocating more.
          */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*100);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+        	
+        	if(running)
+        		return;
+        	running = true;
+            Jenkins h = Jenkins.getInstance();
+            LOGGER.log(Level.INFO,"clouds :"+h.clouds.size());
+            LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
+            int i=0;
+            for( Label l : h.getLabels() ){
+            	i++;
+            	LOGGER.log(Level.INFO,"Label "+i);
+            	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
+            	for(EC2Cloud c:toEC2Cloud(h.clouds)){
+            		if(c.canProvision(l))
+            			c.provision(l, 0);
+            	}
+            }
+            running = false;
+        }
+    }
+    @Extension
+    public static class NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
     	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
     	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
     	 
@@ -688,19 +735,56 @@ public abstract class EC2Cloud extends Cloud {
 
         @Override
         protected void doRun() {
-            Jenkins h = Jenkins.getInstance();
-            LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
-            int i=0;
-            for( Label l : h.getLabels() ){
-            	i++;
-            	LOGGER.log(Level.INFO,"Label "+i);
-            	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
-            	for(EC2Cloud c:toEC2Cloud(h.clouds)){
-            		if(c.canProvision(l))
-            			c.provision(l, 0);
-            	}
-            }
+
         }
     }
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
+    @Extension
+    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+
+        }
+    }
+    @Extension
+    public static class EC3NodeProvisionerInvoker extends PeriodicWork {
+        /**
+         * Give some initial warm up time so that statically connected slaves
+         * can be brought online before we start allocating more.
+         */
+    	public static boolean running=false;
+    	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK);
+    	 
+        @Override
+        public long getInitialDelay() {
+            return INITIALDELAY;
+        }
+
+        public long getRecurrencePeriod() {
+            return RECURRENCEPERIOD;
+        }
+
+        @Override
+        protected void doRun() {
+
+        }
+    }
 }
