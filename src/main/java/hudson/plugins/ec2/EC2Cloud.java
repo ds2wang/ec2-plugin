@@ -112,6 +112,7 @@ public abstract class EC2Cloud extends Cloud {
     protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
+	private int pendingSlaves = 0;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
@@ -330,6 +331,7 @@ public abstract class EC2Cloud extends Cloud {
     }
     public static int countIdleSlaves(String labelstr) {
     	int numIdleSlaves = 0;
+    	//for(EC2OndemandSlave n : NodeIterator.nodes(EC2OndemandSlave.class)){
     	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
     		try{
     			if(n.getLabelString().equals(labelstr) && n.getComputer().isOnline()){
@@ -489,9 +491,7 @@ public abstract class EC2Cloud extends Cloud {
 
     
     public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
-    	EC2PIWindow window = t.getPIWindow().get(0);
-    	int curTime = hour*60+minute;
-    	int start, end;
+    	EC2PIWindow window = t.getEC2PIWindow();
         if ((window.getStartTime() == null || window.getStartTime().trim() == "")
         		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
         	return true;
@@ -504,27 +504,36 @@ public abstract class EC2Cloud extends Cloud {
             int startMin = Integer.parseInt(startTimeStr[1]);
             int endHour = Integer.parseInt(endTimeStr[0]);
             int endMin = Integer.parseInt(endTimeStr[1]);
-            if(endHour*60 + endMin < startHour*60 + startMin){
-                if(curTime < startMin + startHour*60){
-                      start = startHour*60 + startMin-1440;
-                      end = endHour*60 + endMin;
-                }else{
-                      start = startHour*60 + startMin;
-                      end = endHour*60 + endMin + 1440;
-                }
+            if(isInTimeWindow(hour, minute, startHour, startMin, endHour, endMin))
+            	return true;
 
-         }else{
-                start = startHour*60 + startMin;
-                end = endHour*60 + endMin;
-         }
-         if(curTime >= start && curTime < end)
-                return true;
         } catch ( NumberFormatException nfe ) {
         	
         } catch (Exception e){
         	
         }
     	return false;
+    }
+    public static boolean isInTimeWindow(int hour, int minute, int startHour, int startMin, int endHour, int endMin){
+    	int curTime = hour*60+minute;
+    	int start, end;
+        if(endHour*60 + endMin < startHour*60 + startMin){
+            if(curTime < startMin + startHour*60){
+                  start = startHour*60 + startMin-1440;
+                  end = endHour*60 + endMin;
+            }else{
+                  start = startHour*60 + startMin;
+                  end = endHour*60 + endMin + 1440;
+            }
+
+        }else{
+            start = startHour*60 + startMin;
+            end = endHour*60 + endMin;
+        }
+        if(curTime >= start && curTime < end)
+            return true;
+        return false;
+    	
     }
     /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
