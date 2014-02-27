@@ -666,8 +666,9 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
     }
+    
     @Extension
-    public static class AmazonEC2NodeProvisionerInvoker extends PeriodicWork {
+    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
         /**
          * Give some initial warm up time so that statically connected slaves
          * can be brought online before we start allocating more.
