@@ -61,8 +61,6 @@ import com.amazonaws.services.ec2.model.*;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
-	
-	
     public final String ami;
     public final String description;
     public final String zone;
