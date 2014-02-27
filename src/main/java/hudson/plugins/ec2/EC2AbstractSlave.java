@@ -390,6 +390,20 @@ public abstract class EC2AbstractSlave extends Slave {
     	}
     	return PIWindow;
     }
+    public EC2PIWindow getEC2PIWindow(){
+		if (PIWindow == null) 
+			return new EC2PIWindow("","");
+		return PIWindow.get(0);
+    }
+    
+    public String getStartTime(){
+    	return getEC2PIWindow().getStartTime();
+    }
+    
+    public String getEndTime(){
+    	return getEC2PIWindow().getEndTime();
+    }
+    
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
