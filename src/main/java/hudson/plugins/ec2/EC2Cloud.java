@@ -342,10 +342,8 @@ public abstract class EC2Cloud extends Cloud {
 		    		}
     			}
     		}catch( Exception e){
-    			LOGGER.info("some exception :"+e.getMessage());
+    			LOGGER.info("Exception :"+e.getMessage());
     		}
-    		LOGGER.info("ondemandslave ++ ");
-			
 		}
 
         return numIdleSlaves;
@@ -436,7 +434,6 @@ public abstract class EC2Cloud extends Cloud {
                 excessWorkload -= t.getNumExecutors();
 
             }
-            LOGGER.log(Level.WARNING,"done prov");
             return r;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
@@ -689,13 +686,9 @@ public abstract class EC2Cloud extends Cloud {
         protected void doRun() {
 			
 		    Jenkins h = Jenkins.getInstance();
-		    LOGGER.log(Level.INFO,"clouds :"+h.clouds.size());
-		    LOGGER.log(Level.INFO,"num lables :"+h.getLabels().size());
 		    int i=0;
 		    for( Label l : h.getLabels() ){
 		    	i++;
-		    	LOGGER.log(Level.INFO,"Label "+i);
-		    	LOGGER.log(Level.INFO,"Label "+i+"LabelName: "+l.getName());
 		    	for(EC2Cloud c:toEC2Cloud(h.clouds)){
 		    		if(c.canProvision(l))
 		    			c.provision(l, 0);
