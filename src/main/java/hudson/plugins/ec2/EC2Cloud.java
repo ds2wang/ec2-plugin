@@ -664,8 +664,15 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
     
+    /*
+     * 
+     * Periodically determines if we need to create new instances based on primed instances needed
+     * 
+     * IMPORTANT: DO NOT RENAME THIS CLASS!
+     * 
+     */
     @Extension
-    public static class EC2NodeProvisionerInvoker extends PeriodicWork {
+    public static class NodeProvisionerInvoker extends PeriodicWork {
         /**
          * Give some initial warm up time so that statically connected slaves
          * can be brought online before we start allocating more.
@@ -686,9 +693,7 @@ public abstract class EC2Cloud extends Cloud {
         protected void doRun() {
 			
 		    Jenkins h = Jenkins.getInstance();
-		    int i=0;
 		    for( Label l : h.getLabels() ){
-		    	i++;
 		    	for(EC2Cloud c:toEC2Cloud(h.clouds)){
 		    		if(c.canProvision(l))
 		    			c.provision(l, 0);
@@ -696,5 +701,6 @@ public abstract class EC2Cloud extends Cloud {
 		    }
 		}
     }
+
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
 }
