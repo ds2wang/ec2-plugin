@@ -145,7 +145,21 @@ THE SOFTWARE.
     <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
       <f:textbox />
     </f:entry>
-
+    <f:entry title="Primed Instance Count" field="numPrimedInstancesStr">
+	<f:textbox/>
+    </f:entry>
+    <f:entry title="${%Primed Instance Window:}" field="PIWindow" >
+      <f:repeatable field="PIWindow" minimum="1" noAddButton="true" >
+        <table width="100%">
+          <f:entry title="${%Start time [format hh:mm] :}" field="startTime" checkUrl="'descriptorByName/SlaveTemplate/doCheckStartTime?value='+escape(this.value)">
+            <f:textbox/>
+          </f:entry>
+	  <f:entry title="${%End time [format hh:mm] :}" field="endTime">
+            <f:textbox/>
+          </f:entry>
+         </table>
+      </f:repeatable>
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">
