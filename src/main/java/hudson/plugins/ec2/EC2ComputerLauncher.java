@@ -47,8 +47,8 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
 public abstract class EC2ComputerLauncher extends ComputerLauncher {
     @Override
     public void launch(SlaveComputer _computer, TaskListener listener) {
+    	EC2Computer computer = (EC2Computer)_computer;
         try {
-            EC2Computer computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
 
             OUTER:
@@ -79,6 +79,8 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
 
             launch(computer, logger, computer.describeInstance());
         } catch (AmazonClientException e) {
+        	if(computer.getNode().getTerminateIfTimeout() || computer.getNode().getCloud().getTerminateAllSlavesOnTimeout())
+        		computer.deleteSlave();
             e.printStackTrace(listener.error(e.getMessage()));
         } catch (IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));

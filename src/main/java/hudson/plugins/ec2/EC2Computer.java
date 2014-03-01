@@ -164,10 +164,17 @@ public class EC2Computer extends SlaveComputer {
     @Override
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
-        if (getNode() != null)
+        if (getNode() != null )
         	getNode().terminate();
         return new HttpRedirect("..");
     }
+    
+    public void deleteSlave(){
+        checkPermission(DELETE);
+        if (getNode() != null )
+        	getNode().terminate();
+    }
+
 
     /** What username to use to run root-like commands
      *
