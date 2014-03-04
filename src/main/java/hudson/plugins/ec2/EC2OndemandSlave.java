@@ -29,18 +29,18 @@ import com.amazonaws.services.ec2.model.*;
  */
 public final class EC2OndemandSlave extends EC2AbstractSlave {
 	
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName,int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow) throws FormException, IOException {
-    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, numPrimedInstances, PIWindow);
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName,int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow, boolean terminateIfTimeout) throws FormException, IOException {
+    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, numPrimedInstances, PIWindow, terminateIfTimeout);
     }
     
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow) throws FormException, IOException {
-    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, launchTimeout, numPrimedInstances, PIWindow);
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow, boolean terminateIfTimeout) throws FormException, IOException {
+    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, launchTimeout, numPrimedInstances, PIWindow, terminateIfTimeout);
     } 	 
 
     @DataBoundConstructor
-    public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow) throws FormException, IOException {
+    public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, int numPrimedInstances, List<EC2PIWindow> PIWindow, boolean terminateIfTimeout) throws FormException, IOException {
     	
-        super(name, instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, numPrimedInstances, PIWindow);
+        super(name, instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, numPrimedInstances, PIWindow, terminateIfTimeout);
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
@@ -50,7 +50,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
      * Constructor for debugging.
      */
     public EC2OndemandSlave(String instanceId) throws FormException, IOException {
-        this(instanceId, instanceId, "debug", "/tmp/hudson", 22, 1, "debug", Mode.NORMAL, "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false, null, "Fake public", "Fake private", null, null, false, 0, 0, null);
+        this(instanceId, instanceId, "debug", "/tmp/hudson", 22, 1, "debug", Mode.NORMAL, "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false, null, "Fake public", "Fake private", null, null, false, 0, 0, null, false);
     }
 
     

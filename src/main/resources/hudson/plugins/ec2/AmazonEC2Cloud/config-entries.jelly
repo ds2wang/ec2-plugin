@@ -41,6 +41,12 @@ THE SOFTWARE.
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+  <f:entry title="${%Global timeout in seconds}" field="globalTimeoutAMIs">
+    <f:textbox />
+  </f:entry> 
+  <f:entry title="${%Terminate all slaves on timeout}" field="terminateAllSlavesOnTimeout">
+    <f:checkbox />
+  </f:entry> 
   </f:advanced>
   <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId" />
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,secretKey,accessId,privateKey" />

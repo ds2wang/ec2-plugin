@@ -76,6 +76,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -100,6 +101,8 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String accessId;
     private final Secret secretKey;
+    private final String globalTimeoutAMIs;
+    private final boolean terminateAllSlavesOnTimeout;
     protected final EC2PrivateKey privateKey;
 
     /**
@@ -118,11 +121,13 @@ public abstract class EC2Cloud extends Cloud {
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String globalTimeoutAMIs, boolean terminateAllSlavesOnTimeout, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
+        this.globalTimeoutAMIs = globalTimeoutAMIs.trim();
+        this.terminateAllSlavesOnTimeout = terminateAllSlavesOnTimeout;
 
         if(templates==null) {
             this.templates=Collections.emptyList();
@@ -146,6 +151,24 @@ public abstract class EC2Cloud extends Cloud {
         for (SlaveTemplate t : templates)
             t.parent = this;
         return this;
+    }
+    
+    public String getGlobalTimeoutAMIs(){
+    	return globalTimeoutAMIs;
+    }
+    
+    public boolean getTerminateAllSlavesOnTimeout(){
+    	return terminateAllSlavesOnTimeout;
+    }
+    
+    public long getGlobalTimeoutAMIsMillis(){
+    	long timeout;
+        try {
+            timeout = Integer.parseInt(globalTimeoutAMIs)*1000L;
+        } catch (NumberFormatException nfe ) {
+        	timeout = Integer.MAX_VALUE*1000L;
+        }
+    	return timeout;
     }
 
     public String getAccessId() {
@@ -345,7 +368,32 @@ public abstract class EC2Cloud extends Cloud {
     			LOGGER.info("Exception :"+e.getMessage());
     		}
 		}
-
+        return numIdleSlaves;
+        
+    }
+    public int countIdleSlaves(Label l) {
+    	int numIdleSlaves = 0;
+    	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
+    		try{
+    			if(n.getLabelString().equals(l.getName()) && n.getComputer().isOnline()){
+		    		for (Executor ex:n.getComputer().getExecutors()){
+		    			if(ex.isIdle()){
+		    				numIdleSlaves++;
+		    				break;
+		    			}
+		    				
+		    		}
+    			}
+    		}catch( Exception e){
+    			LOGGER.info("Exception :"+e.getMessage());
+    		}
+		}
+    	SlaveTemplate t = getTemplate(l);
+    	try{
+    		numIdleSlaves += provisioningAmis.get(t.ami);
+    	}catch (Exception e){
+    		LOGGER.log(Level.INFO, "Failed at getting provioning amis");
+    	}
         return numIdleSlaves;
         
     }
@@ -373,7 +421,7 @@ public abstract class EC2Cloud extends Cloud {
 					}
 				}
 			}
-			int numIdleSlaves = countIdleSlaves(label.getName()) - slavesUsed;
+			int numIdleSlaves = countIdleSlaves(label) - slavesUsed;
 			
 			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
@@ -487,8 +535,8 @@ public abstract class EC2Cloud extends Cloud {
     
     public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
     	EC2PIWindow window = t.getEC2PIWindow();
-        if ((window.getStartTime() == null || window.getStartTime().trim() == "")
-        		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
+        if ((window.getStartTime() == null || window.getStartTime().equals(""))
+        		&& (window.getEndTime() == null || window.getEndTime().trim().equals(""))) 
         	return true;
         try {
 			String [] startTimeStr =  window.getStartTime().trim().split(":");
@@ -678,7 +726,7 @@ public abstract class EC2Cloud extends Cloud {
          * can be brought online before we start allocating more.
          */
     	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*100);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*10);
     	 
         @Override
         public long getInitialDelay() {

@@ -145,6 +145,9 @@ THE SOFTWARE.
     <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
       <f:textbox />
     </f:entry>
+  <f:entry title="${%Terminate machine if timed out?}" field="terminateIfTimeout">
+    <f:checkbox />
+  </f:entry>  
     <f:entry title="Primed Instance Count" field="numPrimedInstancesStr">
 	<f:textbox/>
     </f:entry>

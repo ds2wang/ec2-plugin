@@ -65,7 +65,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
-        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim().equals("")) {
             this.idleTerminationMinutes = 0;
         } else {
             int value = 30;

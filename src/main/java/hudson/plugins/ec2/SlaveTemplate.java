@@ -80,6 +80,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String subnetId;
     public final String idleTerminationMinutes;
     public final String iamInstanceProfile;
+    public final boolean terminateIfTimeout;
     public final boolean useEphemeralDevices;
     public int instanceCap;
     public final boolean stopOnTerminate;
@@ -95,7 +96,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow, boolean terminateIfTimeout) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -119,6 +120,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = usePrivateDnsName;
         this.numPrimedInstancesStr = numPrimedInstancesStr;
         this.PIWindow = PIWindow;
+        this.terminateIfTimeout = terminateIfTimeout;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -589,11 +591,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow);
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, terminateIfTimeout);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow);
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, terminateIfTimeout);
     }
 
     /**
@@ -776,7 +778,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Number of primed instances must be a non-negative integer (or null)");
         }
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();
@@ -786,7 +788,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val > 0) return FormValidation.ok();
@@ -795,7 +797,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();

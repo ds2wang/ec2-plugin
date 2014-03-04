@@ -168,6 +168,12 @@ public class EC2Computer extends SlaveComputer {
         	getNode().terminate();
         return new HttpRedirect("..");
     }
+    
+    public void deleteSlave(){
+        checkPermission(DELETE);
+        if (getNode() != null )
+        	getNode().terminate();
+    }
 
     /** What username to use to run root-like commands
      *
