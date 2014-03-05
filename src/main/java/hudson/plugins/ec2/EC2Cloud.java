@@ -739,7 +739,6 @@ public abstract class EC2Cloud extends Cloud {
 
         @Override
         protected void doRun() {
-			
 		    Jenkins h = Jenkins.getInstance();
 		    for( Label l : h.getLabels() ){
 		    	for(EC2Cloud c:toEC2Cloud(h.clouds)){
