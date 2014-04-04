@@ -486,6 +486,8 @@ public abstract class EC2Cloud extends Cloud {
 
     
     public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
+    	if(t==null)
+    		return false;
     	EC2PIWindow window = t.getEC2PIWindow();
         if ((window.getStartTime() == null || window.getStartTime().trim() == "")
         		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 

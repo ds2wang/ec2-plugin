@@ -86,36 +86,55 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 			return 1;
 		String labelstr = c.getNode().getLabelString();
 		int numIdleSlaves = EC2Cloud.countIdleSlaves(labelstr) ;
-		
 		LOGGER.severe("Idle slaves: " + numIdleSlaves);
 		if (c.isIdle() && c.isOnline() && !disabled) {
-		    // TODO: really think about the right strategy here
 			
-		    final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-		    if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-		    	
-		        SlaveTemplate t = null;
-		        
-		        for (SlaveTemplate temp:c.getCloud().getTemplates()){
-		        	if (temp.getLabelString().equals(labelstr)){
-		        		t=temp;
-		        	}
-		        }
-		        int numPrimedInstances = t.getNumPrimedInstances();
-		        Date date = new Date();   // given date
-		        Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
-		        calendar.setTime(date);   // assigns calendar to given date 
-		        int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
-		        int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
-		    	if(numIdleSlaves > numPrimedInstances || !EC2Cloud.isInPIWindow(t, hour, minutes)){ //determine if ok to terminate
-		            LOGGER.info("Idle timeout: "+c.getName());
-		            c.getNode().idleTimeout();
-		    	}
-		    }
+			if (idleTerminationMinutes > 0) {
+                // TODO: really think about the right strategy here
+                final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+                if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+                	checkIdleTimeout(idleTerminationMinutes, c);
+                }
+            } else {
+                final long uptime;
+                try {
+                    uptime = c.getUptime();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
+                // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
+                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
+                	checkIdleTimeout(idleTerminationMinutes, c);
+                }
+            }
+		    // TODO: really think about the right strategy here
 		}
 		return 1;
     }
-
+    public void checkIdleTimeout(long idleMilliseconds, EC2Computer c ){
+		String labelstr = c.getNode().getLabelString();
+		int numIdleSlaves = EC2Cloud.countIdleSlaves(labelstr) ;
+        SlaveTemplate t = null;
+        
+        for (SlaveTemplate temp:c.getCloud().getTemplates()){
+        	if (temp.getLabelString().equals(labelstr)){
+        		t=temp;
+        	}
+        }
+        int numPrimedInstances = 0; 
+        if(t != null)
+        	numPrimedInstances = t.getNumPrimedInstances();
+        Date date = new Date();   // given date
+        Calendar calendar = GregorianCalendar.getInstance(); // creates a new calendar instance
+        calendar.setTime(date);   // assigns calendar to given date 
+        int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
+        int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
+    	if(numIdleSlaves > numPrimedInstances || !EC2Cloud.isInPIWindow(t, hour, minutes)){ //determine if ok to terminate
+            LOGGER.info("Idle timeout: "+c.getName());
+            c.getNode().idleTimeout();
+    	}
+    }
     /**
      * Try to connect to it ASAP.
      */

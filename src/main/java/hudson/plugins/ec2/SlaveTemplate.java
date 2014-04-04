@@ -86,6 +86,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String numPrimedInstancesStr;
     public int numPrimedInstances;
     private final List<EC2Tag> tags;
+    public final boolean useDedicatedTenancy;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
     public final List<EC2PIWindow> PIWindow;
@@ -95,7 +96,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow, boolean useDedicatedTenancy) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -119,6 +120,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = usePrivateDnsName;
         this.numPrimedInstancesStr = numPrimedInstancesStr;
         this.PIWindow = PIWindow;
+        this.useDedicatedTenancy = useDedicatedTenancy;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -596,11 +598,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow);
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, useDedicatedTenancy);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow);
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, useDedicatedTenancy);
     }
 
     /**

@@ -1,19 +1,26 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
+
+import hudson.model.Hudson;
 import hudson.slaves.NodeProperty;
 import jenkins.model.Jenkins;
+
 import org.jvnet.hudson.test.HudsonTestCase;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+
 
 public class EC2RetentionStrategyTest extends HudsonTestCase {
 
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
 
     public void testOnBillingHourRetention() throws Exception {
+    	Hudson.getInstance().clouds.add(new AmazonEC2Cloud("abc", "def", "cloud", "ghi", "3", Collections.<SlaveTemplate> emptyList()));
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         List<int[]> upTime = new ArrayList<int[]>();
         List<Boolean> expected = new ArrayList<Boolean>();
@@ -39,7 +46,7 @@ public class EC2RetentionStrategyTest extends HudsonTestCase {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name","id","description","fs",22,1,null,"label",null,null,"init", new ArrayList<NodeProperty<?>>(),"remote","root","jvm",false,"idle",null,"cloud",false,false,Integer.MAX_VALUE ) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name","id","description","fs",22,1,null,"label",null,null,"init", new ArrayList<NodeProperty<?>>(),"remote","root","jvm",false,"idle",null,"ec2-cloud",false,Integer.MAX_VALUE,0, null, false ) {
             @Override
             public void terminate() {
             }
@@ -53,6 +60,7 @@ public class EC2RetentionStrategyTest extends HudsonTestCase {
             void idleTimeout() {
                 idleTimeoutCalled.set(true);
             }
+
         };
         EC2Computer computer = new EC2Computer(slave) {
 
@@ -69,6 +77,10 @@ public class EC2RetentionStrategyTest extends HudsonTestCase {
             @Override
             public boolean isOffline() {
                 return false;
+            }
+            @Override 
+            public EC2Cloud getCloud(){
+            	return new AmazonEC2Cloud("abc", "def", "cloud", "ghi", "3", Collections.<SlaveTemplate> emptyList());
             }
         };
         assertTrue(computer.isIdle());
