@@ -161,6 +161,29 @@ THE SOFTWARE.
 	  <f:entry title="${%End time [format hh:mm] :}" field="endTime">
             <f:textbox/>
           </f:entry>
+  <f:advanced title="Days of the week">
+    <f:entry title="${%Monday}" field="mon">
+      <f:checkbox default="true"/>
+    </f:entry>
+    <f:entry title="${%Tuesday}" field="tues">
+      <f:checkbox default="true"/>
+    </f:entry>
+   <f:entry title="${%Wednesday}" field="wed">
+      <f:checkbox default="true"/>
+    </f:entry>
+   <f:entry title="${%Thursday}" field="thurs">
+      <f:checkbox default="true"/>
+    </f:entry>
+   <f:entry title="${%Friday}" field="fri">
+      <f:checkbox default="true"/>
+    </f:entry>
+   <f:entry title="${%Saturday}" field="sat">
+      <f:checkbox default="true"/>
+    </f:entry>
+   <f:entry title="${%Sunday}" field="sun">
+      <f:checkbox default="true"/>
+    </f:entry>
+ </f:advanced>
          </table>
       </f:repeatable>
     </f:entry>

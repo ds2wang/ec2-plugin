@@ -166,7 +166,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
     public EC2PIWindow getEC2PIWindow(){
 		if (PIWindow == null) 
-			return new EC2PIWindow("","");
+			return new EC2PIWindow("","", false, false, false, false, false ,false, false );
+			//return new EC2PIWindow("","");
 		return PIWindow.get(0);
     }
     
@@ -177,7 +178,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getEndTime(){
     	return getEC2PIWindow().getEndTime();
     }
-    
+    public boolean getMon(){
+    	return getEC2PIWindow().getMon();
+    }
+    public boolean getTues(){
+    	return getEC2PIWindow().getTues();
+    }
+    public boolean getWed(){
+    	return getEC2PIWindow().getWed();
+    }
+    public boolean getThurs(){
+    	return getEC2PIWindow().getThurs();
+    }
+    public boolean getFri(){
+    	return getEC2PIWindow().getFri();
+    }
+    public boolean getSat(){
+    	return getEC2PIWindow().getSat();
+    }
+    public boolean getSun(){
+    	return getEC2PIWindow().getSun();
+    }
     public String getLabelString() {
         return labels;
     }

@@ -15,7 +15,7 @@ import org.kohsuke.stapler.QueryParameter;
 public class EC2PIWindow extends AbstractDescribableImpl<EC2PIWindow> {
     private String startTime;
     private String endTime;
-
+    private boolean [] days = new boolean [7];
     public String getStartTime() {
         return startTime;
     }
@@ -23,13 +23,45 @@ public class EC2PIWindow extends AbstractDescribableImpl<EC2PIWindow> {
     public String getEndTime() {
         return endTime;
     }
-    
+    public boolean getMon(){
+    	return days[0];
+    }
+    public boolean getTues(){
+    	return days[1];
+    }
+    public boolean getWed(){
+    	return days[2];
+    }
+    public boolean getThurs(){
+    	return days[3];
+    }
+    public boolean getFri(){
+    	return days[4];
+    }
+    public boolean getSat(){
+    	return days[5];
+    }
+    public boolean getSun(){
+    	return days[6];
+    }
     @DataBoundConstructor
+    /*
     public EC2PIWindow(String startTime, String endTime)  {
     	this.startTime = startTime.trim();
     	this.endTime = endTime.trim();
+    }*/
+    public EC2PIWindow(String startTime, String endTime, boolean mon, boolean tues, boolean wed, boolean thurs, boolean fri, boolean sat, boolean sun)  {
+    	this.startTime = startTime.trim();
+    	this.endTime = endTime.trim();
+    	this.days[0]=mon; 
+    	this.days[1]=tues;
+    	this.days[2]=wed;
+    	this.days[3]=thurs;
+    	this.days[4]=fri;
+    	this.days[5]=sat;
+    	this.days[6]=sun;
     }
-    
+
 
     
     @Extension

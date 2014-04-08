@@ -392,7 +392,8 @@ public abstract class EC2AbstractSlave extends Slave {
     }
     public EC2PIWindow getEC2PIWindow(){
 		if (PIWindow == null) 
-			return new EC2PIWindow("","");
+			//return new EC2PIWindow("","");
+			return new EC2PIWindow("","", false, false, false, false, false ,false, false );
 		return PIWindow.get(0);
     }
     
@@ -403,7 +404,27 @@ public abstract class EC2AbstractSlave extends Slave {
     public String getEndTime(){
     	return getEC2PIWindow().getEndTime();
     }
-    
+    public boolean getMon(){
+    	return getEC2PIWindow().getMon();
+    }
+    public boolean getTues(){
+    	return getEC2PIWindow().getTues();
+    }
+    public boolean getWed(){
+    	return getEC2PIWindow().getWed();
+    }
+    public boolean getThurs(){
+    	return getEC2PIWindow().getThurs();
+    }
+    public boolean getFri(){
+    	return getEC2PIWindow().getFri();
+    }
+    public boolean getSat(){
+    	return getEC2PIWindow().getSat();
+    }
+    public boolean getSun(){
+    	return getEC2PIWindow().getSun();
+    }
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
