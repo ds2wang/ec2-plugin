@@ -20,6 +20,10 @@ public class EC2PIWindow extends AbstractDescribableImpl<EC2PIWindow> {
         return startTime;
     }
     
+    public boolean inDays( int day){
+    	return days[day];
+    }
+    
     public String getEndTime() {
         return endTime;
     }
@@ -72,7 +76,7 @@ public class EC2PIWindow extends AbstractDescribableImpl<EC2PIWindow> {
         }
         @SuppressWarnings({ "static-method", "unused" }) 
         public FormValidation doCheckStartTime( @QueryParameter final String value) { 
-			if (value == null || value.trim() == "") 
+			if (value == null || value.trim().equals("")) 
 				return FormValidation.ok();
 			try {
 				String [] startTimeStr = value.trim().split(":");
@@ -92,7 +96,7 @@ public class EC2PIWindow extends AbstractDescribableImpl<EC2PIWindow> {
         } 
         @SuppressWarnings({ "static-method", "unused" }) public 
         FormValidation doCheckEndTime( @QueryParameter final String value) { 
-		    if (value == null || value.trim() == "") 
+		    if (value == null || value.trim().equals("")) 
 		    	return FormValidation.ok();
 		    try {
 		    	String [] endTimeStr =  value.trim().split(":");

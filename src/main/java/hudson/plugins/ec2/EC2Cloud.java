@@ -390,8 +390,9 @@ public abstract class EC2Cloud extends Cloud {
             DateFormat dateFormat = new SimpleDateFormat("HH:mm");
             int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
             int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
-            LOGGER.log(Level.INFO, "checking time period: "+dateFormat.format(calendar.getTime()));
-            if(isInPIWindow(t, hour, minutes)){
+            int day= (calendar.get(Calendar.DAY_OF_WEEK)+5) % 7;    
+            LOGGER.log(Level.INFO, "checking time period: "+dateFormat.format(calendar.getTime()) + " Day: "+day );
+            if(isInPIWindow(t, hour, minutes, day)){
             	excessWorkload += primedInstancesNeeded * t.getNumExecutors();
             	LOGGER.log(Level.INFO, "in time period");
             }else{
@@ -485,13 +486,16 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     
-    public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute){
+    public static boolean isInPIWindow(SlaveTemplate t, int hour, int minute, int day){
     	if(t==null)
     		return false;
     	EC2PIWindow window = t.getEC2PIWindow();
-        if ((window.getStartTime() == null || window.getStartTime().trim() == "")
-        		&& (window.getEndTime() == null || window.getEndTime().trim() == "")) 
+    	
+        if ((window.getStartTime() == null || window.getStartTime().trim().equals(""))
+        		&& (window.getEndTime() == null || window.getEndTime().trim().equals(""))) 
         	return true;
+        if(!window.inDays(day))
+        	return false;
         try {
 			String [] startTimeStr =  window.getStartTime().trim().split(":");
 			String [] endTimeStr =  window.getEndTime().trim().split(":");
@@ -680,7 +684,7 @@ public abstract class EC2Cloud extends Cloud {
          * can be brought online before we start allocating more.
          */
     	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*100);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*10);
     	 
         @Override
         public long getInitialDelay() {

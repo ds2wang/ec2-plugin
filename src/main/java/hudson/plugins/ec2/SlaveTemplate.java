@@ -797,7 +797,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();   // can't test
         }
         public FormValidation doCheckNumPrimedInstancesStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();
@@ -806,7 +806,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Number of primed instances must be a non-negative integer (or null)");
         }
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= -59) return FormValidation.ok();
@@ -816,7 +816,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val > 0) return FormValidation.ok();
@@ -825,7 +825,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();

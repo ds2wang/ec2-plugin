@@ -65,7 +65,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
-        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim().equals("")) {
             this.idleTerminationMinutes = 0;
         } else {
             int value = 30;
@@ -130,7 +130,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         calendar.setTime(date);   // assigns calendar to given date 
         int hour= calendar.get(Calendar.HOUR_OF_DAY); // gets hour in 24h format
         int minutes = calendar.get(Calendar.MINUTE);        // gets hour in 12h format
-    	if(numIdleSlaves > numPrimedInstances || !EC2Cloud.isInPIWindow(t, hour, minutes)){ //determine if ok to terminate
+        int day= (calendar.get(Calendar.DAY_OF_WEEK)+5) % 7;     
+    	if(numIdleSlaves > numPrimedInstances || !EC2Cloud.isInPIWindow(t, hour, minutes, day)){ //determine if ok to terminate
             LOGGER.info("Idle timeout: "+c.getName());
             c.getNode().idleTimeout();
     	}
