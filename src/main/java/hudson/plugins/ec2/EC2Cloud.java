@@ -349,6 +349,32 @@ public abstract class EC2Cloud extends Cloud {
         return numIdleSlaves;
         
     }
+    public int countIdleSlaves(Label l) {
+    	int numIdleSlaves = 0;
+    	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
+    		try{
+    			if(n.getLabelString().equals(l.getName()) && n.getComputer().isOnline()){
+		    		for (Executor ex:n.getComputer().getExecutors()){
+		    			if(ex.isIdle()){
+		    				numIdleSlaves++;
+		    				break;
+		    			}
+
+		    		}
+    			}
+    		}catch( Exception e){
+    			LOGGER.info("Exception :"+e.getMessage());
+    		}
+		}
+    	SlaveTemplate t = getTemplate(l);
+    	try{
+    		numIdleSlaves += provisioningAmis.get(t.ami);
+    	}catch (Exception e){
+    		LOGGER.log(Level.INFO, "Failed at getting provioning amis");
+    	}
+        return numIdleSlaves;
+        
+    }
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
     	int slavesUsed = 0;
@@ -373,7 +399,7 @@ public abstract class EC2Cloud extends Cloud {
 					}
 				}
 			}
-			int numIdleSlaves = countIdleSlaves(label.getName()) - slavesUsed;
+			int numIdleSlaves = countIdleSlaves(label) - slavesUsed;
 			
 			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
@@ -684,7 +710,7 @@ public abstract class EC2Cloud extends Cloud {
          * can be brought online before we start allocating more.
          */
     	 public static int INITIALDELAY = Integer.getInteger(NodeProvisioner.class.getName()+".initialDelay",LoadStatistics.CLOCK*10);
-    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*10);
+    	 public static int RECURRENCEPERIOD = Integer.getInteger(NodeProvisioner.class.getName()+".recurrencePeriod",LoadStatistics.CLOCK*1);
     	 
         @Override
         public long getInitialDelay() {
