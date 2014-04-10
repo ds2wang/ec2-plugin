@@ -151,8 +151,40 @@ public class SlaveTemplateTest extends HudsonTestCase {
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamInstanceProfile");
     }
-
-
+    
+    public void testInPIWindow(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertTrue(EC2Cloud.isInPIWindow(st,8, 56, 1));
+    }
+    
+    public void testNotInPIWindow(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,9, 56, 1));
+    }
+    
+    
+    public void testPIWindowInDays(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",false, true, false, false, false, false, false);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertTrue(EC2Cloud.isInPIWindow(st,8, 56, 1));
+    }
+    
+    public void testPIWindowNotInDays(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("8:55", "9:00",false, true, false, false, false, false, false);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,8, 56, 2));
+    }
+    
     public void testNullTimeoutShouldReturnMaxInt(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", null, false);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
