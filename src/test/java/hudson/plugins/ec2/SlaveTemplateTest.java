@@ -184,6 +184,23 @@ public class SlaveTemplateTest extends HudsonTestCase {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
         assertFalse(EC2Cloud.isInPIWindow(st,8, 56, 2));
     }
+    public void testPIWindowInvalidFormats(){
+    	List<EC2PIWindow> piWindowList= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow=new EC2PIWindow("0:00", "023:59",true ,true ,true, true, true, true, true);
+    	piWindowList.add(piWindow);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList, false);
+        assertFalse(EC2Cloud.isInPIWindow(st,8, 56, 2));
+        List<EC2PIWindow> piWindowList2= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow2=new EC2PIWindow("0:00", "2345", true ,true ,true, true, true, true, true);
+    	piWindowList2.add(piWindow2);
+        SlaveTemplate st2 = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList2, false);
+        assertFalse(EC2Cloud.isInPIWindow(st2, 8, 56, 2));
+        List<EC2PIWindow> piWindowList3= new ArrayList<EC2PIWindow>();
+    	EC2PIWindow piWindow3=new EC2PIWindow("0:00", "asdf", true ,true ,true, true, true, true, true);
+    	piWindowList3.add(piWindow3);
+        SlaveTemplate st3 = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", piWindowList2, false);
+        assertFalse(EC2Cloud.isInPIWindow(st3, 8, 56, 2));
+    }
     
     public void testNullTimeoutShouldReturnMaxInt(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null, "0", null, false);

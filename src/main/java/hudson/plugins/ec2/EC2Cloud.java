@@ -525,6 +525,8 @@ public abstract class EC2Cloud extends Cloud {
         try {
 			String [] startTimeStr =  window.getStartTime().trim().split(":");
 			String [] endTimeStr =  window.getEndTime().trim().split(":");
+	    	if(endTimeStr[1].length()!=2 || endTimeStr[0].length()>2||startTimeStr[1].length()!=2 || startTimeStr[0].length()>2)
+	    		return false;
 			LOGGER.log(Level.INFO, "startTime:" + window.getStartTime().trim());
 			LOGGER.log(Level.INFO, "endTime:" + window.getEndTime().trim());
 			int startHour = Integer.parseInt(startTimeStr[0]);
