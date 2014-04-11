@@ -25,6 +25,7 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.AbstractDescribableImpl;
 import hudson.model.Describable;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
@@ -44,6 +45,7 @@ import java.util.*;
 import javax.servlet.ServletException;
 
 import jenkins.slaves.iterators.api.NodeIterator;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -81,18 +83,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean useEphemeralDevices;
     public int instanceCap;
     public final boolean stopOnTerminate;
+    public final String numPrimedInstancesStr;
+    public int numPrimedInstances;
     private final List<EC2Tag> tags;
+    public final boolean useDedicatedTenancy;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
-    public final boolean useDedicatedTenancy;
-
+    public final List<EC2PIWindow> PIWindow;
     public int launchTimeout;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr, String numPrimedInstancesStr, List<EC2PIWindow> PIWindow, boolean useDedicatedTenancy) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -114,6 +118,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.numPrimedInstancesStr = numPrimedInstancesStr;
+        this.PIWindow = PIWindow;
         this.useDedicatedTenancy = useDedicatedTenancy;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
@@ -122,6 +128,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             this.instanceCap = Integer.parseInt(instanceCapStr);
         }
 
+        try {
+            this.numPrimedInstances = Integer.parseInt(numPrimedInstancesStr);
+        } catch (NumberFormatException nfe ) {
+            this.numPrimedInstances = 0;
+        }
         try {
             this.launchTimeout = Integer.parseInt(launchTimeoutStr);
         } catch (NumberFormatException nfe ) {
@@ -138,12 +149,56 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return parent;
     }
     
+    public int getNumPrimedInstances(){
+    	return numPrimedInstances;
+    }
+    
     public String getBidType(){
     	if(spotConfig == null)
     		return null;
     	return spotConfig.spotInstanceBidType;
     }
 
+    public List<EC2PIWindow> getPIWindow(){
+		if (PIWindow == null) 
+			return new ArrayList<EC2PIWindow>();
+		return PIWindow;
+    }
+    public EC2PIWindow getEC2PIWindow(){
+		if (PIWindow == null) 
+			return new EC2PIWindow("","", false, false, false, false, false ,false, false );
+			//return new EC2PIWindow("","");
+		return PIWindow.get(0);
+    }
+    
+    public String getStartTime(){
+    	return getEC2PIWindow().getStartTime();
+    }
+    
+    public String getEndTime(){
+    	return getEC2PIWindow().getEndTime();
+    }
+    public boolean getMon(){
+    	return getEC2PIWindow().getMon();
+    }
+    public boolean getTues(){
+    	return getEC2PIWindow().getTues();
+    }
+    public boolean getWed(){
+    	return getEC2PIWindow().getWed();
+    }
+    public boolean getThurs(){
+    	return getEC2PIWindow().getThurs();
+    }
+    public boolean getFri(){
+    	return getEC2PIWindow().getFri();
+    }
+    public boolean getSat(){
+    	return getEC2PIWindow().getSat();
+    }
+    public boolean getSun(){
+    	return getEC2PIWindow().getSun();
+    }
     public String getLabelString() {
         return labels;
     }
@@ -267,6 +322,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     	}
     	return provisionOndemand(listener);
     }
+    
+  
     
     /**
      * Provisions new On-demand EC2 slave.
@@ -562,11 +619,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout());
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, useDedicatedTenancy);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), 0, PIWindow, useDedicatedTenancy);
     }
 
     /**
@@ -739,9 +796,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else
                 return FormValidation.ok();   // can't test
         }
-
+        public FormValidation doCheckNumPrimedInstancesStr(@QueryParameter String value) {
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) return FormValidation.ok();
+            }
+            catch ( NumberFormatException nfe ) {}
+            return FormValidation.error("Number of primed instances must be a non-negative integer (or null)");
+        }
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= -59) return FormValidation.ok();
@@ -751,7 +816,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val > 0) return FormValidation.ok();
@@ -760,7 +825,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "") return FormValidation.ok();
+            if (value == null || value.trim().equals("")) return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();
