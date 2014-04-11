@@ -328,7 +328,16 @@ public abstract class EC2Cloud extends Cloud {
             provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
         }
     }
-    public static int countIdleSlaves(String labelstr) {
+    
+    /**
+     * 
+     * Counts number of slaves that are idle and the ones that are currently provisioning. 
+     * Used to determine number of slaves we need to provision
+     * 
+     * @param labelstr
+     * @return
+     */
+    public static int countIdleAndProvisioningSlaves(String labelstr) {
     	int numIdleSlaves = 0;
     	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
     		try{
@@ -344,12 +353,12 @@ public abstract class EC2Cloud extends Cloud {
     		}catch( Exception e){
     			LOGGER.info("Exception :"+e.getMessage());
     		}
-		}
+    	}
 
         return numIdleSlaves;
         
     }
-    public int countIdleSlaves(Label l) {
+    public int countIdleAndProvisioningSlaves(Label l) {
     	int numIdleSlaves = 0;
     	for(EC2AbstractSlave n : NodeIterator.nodes(EC2AbstractSlave.class)){
     		try{
@@ -399,7 +408,7 @@ public abstract class EC2Cloud extends Cloud {
 					}
 				}
 			}
-			int numIdleSlaves = countIdleSlaves(label) - slavesUsed;
+			int numIdleSlaves = countIdleAndProvisioningSlaves(label) - slavesUsed;
 			
 			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
@@ -467,7 +476,11 @@ public abstract class EC2Cloud extends Cloud {
             return Collections.emptyList();
         }
     }
-
+    
+    public Date getCurDate(){
+    	return new Date();
+    }
+    
     @Override
 	public boolean canProvision(Label label) {
         return getTemplate(label)!=null;
@@ -534,7 +547,7 @@ public abstract class EC2Cloud extends Cloud {
 			int endHour = Integer.parseInt(endTimeStr[0]);
 			int endMin = Integer.parseInt(endTimeStr[1]);
 			if(isInTimeWindow(hour, minute, startHour, startMin, endHour, endMin))
-            	return true;
+				return true;
 
         } catch ( NumberFormatException nfe ) {
         	

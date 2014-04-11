@@ -392,7 +392,6 @@ public abstract class EC2AbstractSlave extends Slave {
     }
     public EC2PIWindow getEC2PIWindow(){
 		if (PIWindow == null) 
-			//return new EC2PIWindow("","");
 			return new EC2PIWindow("","", false, false, false, false, false ,false, false );
 		return PIWindow.get(0);
     }
