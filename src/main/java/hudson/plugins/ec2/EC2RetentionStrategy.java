@@ -112,7 +112,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
     public void checkIdleTimeout(long idleMilliseconds, EC2Computer c ){		
 		String labelstr = c.getNode().getLabelString();
-		int numIdleSlaves = EC2Cloud.countIdleSlaves(labelstr) ;
+		int numIdleSlaves = EC2Cloud.countIdleAndProvisioningSlaves(labelstr) ;
 		LOGGER.severe("Idle slaves: " + numIdleSlaves);
 		SlaveTemplate t = null;
 		
