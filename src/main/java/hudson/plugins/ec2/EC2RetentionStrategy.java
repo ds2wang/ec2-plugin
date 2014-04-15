@@ -64,6 +64,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0) {
         	return 1;
+        }
         String labelstr = c.getNode().getLabelString();
         
         if (c.isIdle() && c.isOnline() && !disabled) {
